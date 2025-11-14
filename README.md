@@ -9,15 +9,13 @@ A simple Docker-based setup for running a Stratos Decentralized Storage (SDS) no
 
 ## Setup
 
-1. Copy the environment template and configure it:
+1. Run the initialization script:
    ```bash
-   cp env.template .env
+   ./init.sh
    ```
+   This will create `.env` and automatically set your public IP address.
 
-2. Edit `.env` file with your configuration:
-   - `NETWORK_ADDRESS`: Your public IP address or hostname
-   - `MNEMONIC_PHRASE`: Your 24-word mnemonic phrase
-   - `NETWORK_PORT`: Network port (default: 18081)
+2. Edit `.env` and add your `MNEMONIC_PHRASE` (24 words)
 
 ## Usage
 
