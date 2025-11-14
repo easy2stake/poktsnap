@@ -17,13 +17,16 @@ RUN wget https://go.dev/dl/go1.22.12.linux-amd64.tar.gz && \
     rm go1.22.12.linux-amd64.tar.gz
 
 # Set working directory for the build
+WORKDIR /go/src/github.com/stratosnet
+
+# Clone the SDS repository
+ARG SDS_VERSION=main
+RUN git clone --depth 1 --branch ${SDS_VERSION} https://github.com/stratosnet/sds.git
+
 WORKDIR /go/src/github.com/stratosnet/sds
 
-COPY go.mod go.sum ./
+# Download dependencies and build
 RUN go mod download
-
-# Add source files
-COPY . .
 RUN make update install
 
 RUN cd relayer && make install

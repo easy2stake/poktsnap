@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - SDS_VERSION=${SDS_VERSION:-main}
     image: sds
     container_name: sds-node
     ports:
