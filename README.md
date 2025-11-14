@@ -21,46 +21,12 @@ A simple Docker-based setup for running a Stratos Decentralized Storage (SDS) no
 
 ## Usage
 
-### 1. Start the Node
-
-```bash
-docker compose up -d
-```
-
-### 2. Open the Terminal
-
-```bash
-./terminal.sh
-```
-
-### 3. Register the Peer
-
-In the terminal, run:
-```
-rp
-```
-
-### 4. List Available Files
-
-```
-list
-```
-
-### 5. View Wallet Accounts
-
-To list the wallet account used to download files:
-```
-wallets
-```
-
-### 6. Download Files
-
-To download a file:
-```
-get sdm://wallet-account/filehash
-```
-
-Replace `wallet-account` with your wallet address and `filehash` with the file's hash.
+1. **Start the node:** `docker compose up -d`
+2. **Open terminal:** `./terminal.sh`
+3. **Register peer:** `rp`
+4. **List files:** `list`
+5. **View wallets:** `wallets`
+6. **Download file:** `get sdm://wallet-account/filehash`
 
 ## Stopping the Node
 
