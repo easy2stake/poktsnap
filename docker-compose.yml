@@ -13,10 +13,6 @@ services:
     container_name: sds-node
     ports:
       - "${NETWORK_PORT:-18081}:${NETWORK_PORT:-18081}"
-    environment:
-      - NETWORK_ADDRESS=${NETWORK_ADDRESS}
-      - MNEMONIC_PHRASE=${MNEMONIC_PHRASE}
-      - NETWORK_PORT=${NETWORK_PORT:-18081}
     volumes:
       - ./sds-data:/sds
     env_file:
