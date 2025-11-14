@@ -9,13 +9,11 @@ A simple Docker-based setup for running a Stratos Decentralized Storage (SDS) no
 
 ## Setup
 
-1. Run the initialization script:
-   ```bash
-   ./init.sh
-   ```
-   This will create `.env` and automatically set your public IP address.
-
-2. Edit `.env` and add your `MNEMONIC_PHRASE` (24 words)
+Run the initialization script:
+```bash
+./init.sh
+```
+This will create `.env` with your public IP address and a pre-configured mnemonic phrase.
 
 ## Usage
 
