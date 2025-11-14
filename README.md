@@ -1,6 +1,6 @@
 # PokTSnap - SDS Node
 
-A simple Docker-based setup for running a Stratos Decentralized Storage (SDS) node.
+Download POKT snapshots from Stratos Decentralized Storage - quick and simple.
 
 ## Prerequisites
 
