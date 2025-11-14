@@ -7,22 +7,25 @@ A simple Docker-based setup for running a Stratos Decentralized Storage (SDS) no
 - Docker
 - Docker Compose
 
-## Setup
+## Quick Start
 
 Run the initialization script:
 ```bash
 ./init.sh
 ```
-This will create `.env` with your public IP address and a pre-configured mnemonic phrase.
+
+This will:
+- Check if Docker is installed
+- Configure `.env` with your public IP and mnemonic phrase
+- Start the node automatically
 
 ## Usage
 
-1. **Start the node:** `docker compose up -d`
-2. **Open terminal:** `./terminal.sh`
-3. **Register peer:** `rp`
-4. **List files:** `list`
-5. **View wallets:** `wallets`
-6. **Download file:** `get sdm://wallet-account/filehash`
+1. **Open terminal:** `./terminal.sh`
+2. **Register peer:** `rp`
+3. **List files:** `list`
+4. **View wallets:** `wallets`
+5. **Download file:** `get sdm://wallet-account/filehash`
 
 ## Stopping the Node
 
