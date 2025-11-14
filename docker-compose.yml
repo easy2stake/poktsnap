@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
       args:
         - SDS_VERSION=${SDS_VERSION:-main}
+        - UID=${UID:-2048}
+        - GID=${GID:-2048}
     image: sds
     container_name: sds-node
     ports:
