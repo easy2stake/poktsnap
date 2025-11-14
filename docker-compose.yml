@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  sds-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sds
+    container_name: sds-node
+    ports:
+      - "18081:18081"
+    environment:
+      - NETWORK_ADDRESS=${NETWORK_ADDRESS}
+      - MNEMONIC_PHRASE=${MNEMONIC_PHRASE}
+    volumes:
+      - ./sds-data:/sds
+    env_file:
+      - .env
+
