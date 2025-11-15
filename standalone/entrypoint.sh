@@ -75,16 +75,38 @@ if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
     exit 1
 fi
 
-# Register peer
+# Register peer with retry logic
 echo "[entrypoint] Registering peer..."
-RP_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
+MAX_RP_RETRIES=10
+RP_RETRY_COUNT=0
+RP_SUCCESS=false
 
-if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
-    echo "[entrypoint] ✓ Peer registered successfully"
-elif echo "$RP_OUTPUT" | grep -q "return:  -10"; then
-    echo "[entrypoint] ✓ Peer already registered"
-else
-    echo "[entrypoint] ✗ Failed to register peer"
+while [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; do
+    if [ $RP_RETRY_COUNT -gt 0 ]; then
+        echo "[entrypoint] Retry attempt $RP_RETRY_COUNT of $MAX_RP_RETRIES..."
+    fi
+    
+    RP_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
+    
+    if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
+        echo "[entrypoint] ✓ Peer registered successfully"
+        RP_SUCCESS=true
+        break
+    elif echo "$RP_OUTPUT" | grep -q "return:  -10"; then
+        echo "[entrypoint] ✓ Peer already registered"
+        RP_SUCCESS=true
+        break
+    else
+        RP_RETRY_COUNT=$((RP_RETRY_COUNT + 1))
+        if [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; then
+            echo "[entrypoint] ⚠ Peer registration failed, retrying in 2 seconds..."
+            sleep 2
+        fi
+    fi
+done
+
+if [ "$RP_SUCCESS" = false ]; then
+    echo "[entrypoint] ✗ Failed to register peer after $MAX_RP_RETRIES attempts"
     echo "$RP_OUTPUT"
     kill $PPD_PID 2>/dev/null
     exit 1
