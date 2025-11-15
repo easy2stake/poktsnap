@@ -41,9 +41,9 @@ FROM ubuntu:24.04
 ENV WORK_DIR=/sds
 ENV RUN_AS_USER=sds
 
-# Install ca-certificates and curl (for IP auto-detection)
+# Install ca-certificates, curl (for IP auto-detection), and netcat (for port checking)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gosu ca-certificates curl \
+    && apt-get install -y --no-install-recommends gosu ca-certificates curl netcat-openbsd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && gosu nobody true

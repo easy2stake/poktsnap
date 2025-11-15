@@ -53,9 +53,27 @@ echo "[entrypoint] Starting as user: $RUN_AS_USER"
 gosu "$RUN_AS_USER" ppd start &
 PPD_PID=$!
 
-# Wait for node to be ready
-echo "[entrypoint] Waiting 5 seconds for node to be ready..."
-sleep 5
+# Wait for node to be ready (check if RPC port is listening)
+echo "[entrypoint] Waiting for node to be ready..."
+MAX_WAIT=60
+WAIT_COUNT=0
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    if nc -z 127.0.0.1 18281 2>/dev/null; then
+        echo "[entrypoint] ✓ Node is ready (RPC port 18281 is listening)"
+        break
+    fi
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    if [ $((WAIT_COUNT % 10)) -eq 0 ]; then
+        echo "[entrypoint] Still waiting... ($WAIT_COUNT seconds)"
+    fi
+done
+
+if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+    echo "[entrypoint] ✗ Timeout waiting for node to be ready"
+    kill $PPD_PID 2>/dev/null
+    exit 1
+fi
 
 # Register peer
 echo "[entrypoint] Registering peer..."
