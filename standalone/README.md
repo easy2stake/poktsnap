@@ -20,7 +20,7 @@ Simplest usage (all defaults):
 ```bash
 docker run --rm \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 With custom wallet address:
@@ -29,7 +29,7 @@ With custom wallet address:
 docker run --rm \
   -e WALLET_ADDRESS=st1yourwalletaddress \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 With fully custom configuration:
@@ -40,7 +40,7 @@ docker run --rm \
   -e MNEMONIC_PHRASE="your 24 word mnemonic phrase" \
   -e WALLET_ADDRESS=st1yourwalletaddress \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 The snapshot will be downloaded to `./downloads/` and the container will exit automatically.
@@ -72,7 +72,7 @@ The snapshot will be downloaded to `./downloads/` and the container will exit au
 docker run --rm \
   -e DOWNLOAD_FILENAME=pocket-snap-data-20251104000201.tar.gz \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 ### Use Custom Port
@@ -82,7 +82,7 @@ docker run --rm \
   -e NETWORK_PORT=18082 \
   -p 18082:18082 \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 ### Using env.template
@@ -99,7 +99,7 @@ cp env.template .env
 docker run --rm \
   --env-file .env \
   -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap-flash:latest
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 ## How It Works

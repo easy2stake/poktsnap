@@ -8,11 +8,11 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-IMAGE_NAME="ghcr.io/easy2stake/poktsnap-flash"
+IMAGE_NAME="ghcr.io/easy2stake/poktsnap"
 VERSION="${1:-v1.0.0}"  # Use first argument or default to v1.0.0
 USERNAME="easy2stake"
 
-echo -e "${GREEN}=== PokTSnap Flash Build and Push ===${NC}"
+echo -e "${GREEN}=== PokTSnap Build and Push ===${NC}"
 echo ""
 
 # Check if Docker is running
@@ -57,7 +57,7 @@ echo -e "  - ${IMAGE_NAME}:${VERSION}"
 echo ""
 echo -e "To make the package public:"
 echo -e "  1. Go to https://github.com/easy2stake?tab=packages"
-echo -e "  2. Click on 'poktsnap-flash'"
+echo -e "  2. Click on 'poktsnap'"
 echo -e "  3. Package settings → Change visibility to Public"
 echo ""
 echo -e "Usage example:"
