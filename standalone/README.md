@@ -19,6 +19,7 @@ Simplest usage (all defaults):
 
 ```bash
 docker run --rm \
+  -p 18081:18081 \
   -v ./downloads:/sds/download \
   ghcr.io/easy2stake/poktsnap:latest
 ```
@@ -27,6 +28,7 @@ With custom wallet address:
 
 ```bash
 docker run --rm \
+  -p 18081:18081 \
   -e WALLET_ADDRESS=st1yourwalletaddress \
   -v ./downloads:/sds/download \
   ghcr.io/easy2stake/poktsnap:latest
@@ -36,6 +38,7 @@ With fully custom configuration:
 
 ```bash
 docker run --rm \
+  -p 18081:18081 \
   -e NETWORK_ADDRESS=your.ip.address \
   -e MNEMONIC_PHRASE="your 24 word mnemonic phrase" \
   -e WALLET_ADDRESS=st1yourwalletaddress \
@@ -70,6 +73,7 @@ The snapshot will be downloaded to `./downloads/` and the container will exit au
 
 ```bash
 docker run --rm \
+  -p 18081:18081 \
   -e DOWNLOAD_FILENAME=pocket-snap-data-20251104000201.tar.gz \
   -v ./downloads:/sds/download \
   ghcr.io/easy2stake/poktsnap:latest
@@ -97,6 +101,7 @@ cp env.template .env
 3. Run with env file:
 ```bash
 docker run --rm \
+  -p 18081:18081 \
   --env-file .env \
   -v ./downloads:/sds/download \
   ghcr.io/easy2stake/poktsnap:latest
@@ -113,6 +118,20 @@ docker run --rm \
 7. Saves to `/sds/download/` (mounted volume)
 8. Shuts down node cleanly
 9. Container exits
+
+## Port Mapping
+
+The P2P port **must be exposed** for the node to be reachable by the Stratos network:
+
+```bash
+-p 18081:18081
+```
+
+If using a custom port, map both host and container ports:
+
+```bash
+-e NETWORK_PORT=18082 -p 18082:18082
+```
 
 ## Volume Mounting
 
