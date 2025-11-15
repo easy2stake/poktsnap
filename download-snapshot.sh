@@ -68,7 +68,40 @@ else
     fi
 fi
 
-# Download the file
+# Download the file with retry logic
 echo "Downloading $FILENAME (hash: $FILEHASH)..."
-docker exec -it sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}"
+
+MAX_RETRIES=5
+RETRY_COUNT=0
+DOWNLOAD_SUCCESS=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if [ $RETRY_COUNT -gt 0 ]; then
+        echo ""
+        echo "Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
+    fi
+    
+    DOWNLOAD_OUTPUT=$(docker exec -it sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
+    echo "$DOWNLOAD_OUTPUT"
+    
+    # Check if download was successful
+    if echo "$DOWNLOAD_OUTPUT" | grep -q "return:  -5"; then
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo "⚠ Download failed (response code: -5), retrying..."
+            sleep 2
+        else
+            echo "✗ Download failed after $MAX_RETRIES attempts (response code: -5)"
+            exit 1
+        fi
+    else
+        DOWNLOAD_SUCCESS=true
+        break
+    fi
+done
+
+if [ "$DOWNLOAD_SUCCESS" = true ]; then
+    echo ""
+    echo "✓ Download completed successfully"
+fi
 
