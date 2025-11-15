@@ -31,6 +31,9 @@ RUN make update install
 
 RUN cd relayer && make install
 
+# Build rpcclient from example directory
+RUN cd example/rpcclient && go build -o /root/go/bin/rpcclient
+
 
 # Final image
 FROM ubuntu:24.04
@@ -57,6 +60,7 @@ WORKDIR ${WORK_DIR}
 
 # Copy over binaries from the build-env
 COPY --from=build-env /root/go/bin/ppd /usr/bin/
+COPY --from=build-env /root/go/bin/rpcclient /usr/bin/
 COPY ./entrypoint.sh /usr/bin/entrypoint.sh
 
 RUN chmod +x /usr/bin/entrypoint.sh
