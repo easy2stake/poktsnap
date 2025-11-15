@@ -22,12 +22,23 @@ cp env.template .env
 # Get public IP address
 PUBLIC_IP=$(curl -4 -s ip.me)
 
+# Get current user's UID and GID
+USER_UID=$(id -u)
+USER_GID=$(id -g)
+
 # Replace placeholder with actual IP
 sed -i.bak "s/your.public.ip.address/$PUBLIC_IP/" .env
+
+# Replace UID and GID with actual values
+sed -i.bak "s/UID=2048/UID=$USER_UID/" .env
+sed -i.bak "s/GID=2048/GID=$USER_GID/" .env
+
 rm .env.bak
 
 echo "✓ Created .env file"
 echo "✓ Set NETWORK_ADDRESS to: $PUBLIC_IP"
+echo "✓ Set UID to: $USER_UID"
+echo "✓ Set GID to: $USER_GID"
 echo "✓ MNEMONIC_PHRASE already configured"
 echo ""
 echo "Starting the node..."
