@@ -77,7 +77,7 @@ fi
 
 # Register peer with retry logic
 echo "[entrypoint] Registering peer..."
-MAX_RP_RETRIES=10
+MAX_RP_RETRIES=12
 RP_RETRY_COUNT=0
 RP_SUCCESS=false
 
@@ -99,14 +99,21 @@ while [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; do
     else
         RP_RETRY_COUNT=$((RP_RETRY_COUNT + 1))
         if [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; then
-            echo "[entrypoint] ⚠ Peer registration failed, retrying in 2 seconds..."
-            sleep 2
+            # Check if it's a connection issue (return -5)
+            if echo "$RP_OUTPUT" | grep -q "return:  -5"; then
+                echo "[entrypoint] ⚠ Node is connecting to SP network, waiting 5 seconds before retry..."
+                sleep 5
+            else
+                echo "[entrypoint] ⚠ Peer registration failed, retrying in 5 seconds..."
+                sleep 5
+            fi
         fi
     fi
 done
 
 if [ "$RP_SUCCESS" = false ]; then
     echo "[entrypoint] ✗ Failed to register peer after $MAX_RP_RETRIES attempts"
+    echo "[entrypoint] Last error output:"
     echo "$RP_OUTPUT"
     kill $PPD_PID 2>/dev/null
     exit 1
