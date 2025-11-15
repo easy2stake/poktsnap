@@ -4,7 +4,8 @@ RUN_AS_USER=${RUN_AS_USER:-sds}
 WORK_DIR=${WORK_DIR:-/sds}
 NETWORK_PORT=${NETWORK_PORT:-18081}
 PPD_BIN=/usr/bin/ppd
-
+RPC_URL=${RPC_URL:-http://127.0.0.1:18281}
+RPC_PASSWORD=${RPC_PASSWORD:-}
 
 if [ ! -d "$WORK_DIR/config" ]
 then
@@ -82,52 +83,48 @@ if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
     exit 1
 fi
 
-# Register peer with retry logic (only if RPC_PASSWORD and RPC_URL are set)
-if [ -n "$RPC_PASSWORD" ] && [ -n "$RPC_URL" ]; then
-    echo "[entrypoint] Registering peer..."
-    MAX_RP_RETRIES=12
-    RP_RETRY_COUNT=0
-    RP_SUCCESS=false
+# Register peer with retry logic
+echo "[entrypoint] Registering peer..."
+MAX_RP_RETRIES=12
+RP_RETRY_COUNT=0
+RP_SUCCESS=false
 
-    while [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; do
-        if [ $RP_RETRY_COUNT -gt 0 ]; then
-            echo "[entrypoint] Retry attempt $RP_RETRY_COUNT of $MAX_RP_RETRIES..."
-        fi
-        
-        RP_OUTPUT=$(gosu "$RUN_AS_USER" rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
-        
-        if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
-            echo "[entrypoint] ✓ Peer registered successfully"
-            RP_SUCCESS=true
-            break
-        elif echo "$RP_OUTPUT" | grep -q "return:  -10"; then
-            echo "[entrypoint] ✓ Peer already registered"
-            RP_SUCCESS=true
-            break
-        else
-            RP_RETRY_COUNT=$((RP_RETRY_COUNT + 1))
-            if [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; then
-                # Check if it's a connection issue (return -5)
-                if echo "$RP_OUTPUT" | grep -q "return:  -5"; then
-                    echo "[entrypoint] ⚠ Node is connecting to SP network, waiting 5 seconds before retry..."
-                    sleep 5
-                else
-                    echo "[entrypoint] ⚠ Peer registration failed, retrying in 5 seconds..."
-                    sleep 5
-                fi
+while [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; do
+    if [ $RP_RETRY_COUNT -gt 0 ]; then
+        echo "[entrypoint] Retry attempt $RP_RETRY_COUNT of $MAX_RP_RETRIES..."
+    fi
+    
+    RP_OUTPUT=$(gosu "$RUN_AS_USER" rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
+    
+    if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
+        echo "[entrypoint] ✓ Peer registered successfully"
+        RP_SUCCESS=true
+        break
+    elif echo "$RP_OUTPUT" | grep -q "return:  -10"; then
+        echo "[entrypoint] ✓ Peer already registered"
+        RP_SUCCESS=true
+        break
+    else
+        RP_RETRY_COUNT=$((RP_RETRY_COUNT + 1))
+        if [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; then
+            # Check if it's a connection issue (return -5)
+            if echo "$RP_OUTPUT" | grep -q "return:  -5"; then
+                echo "[entrypoint] ⚠ Node is connecting to SP network, waiting 5 seconds before retry..."
+                sleep 5
+            else
+                echo "[entrypoint] ⚠ Peer registration failed, retrying in 5 seconds..."
+                sleep 5
             fi
         fi
-    done
-
-    if [ "$RP_SUCCESS" = false ]; then
-        echo "[entrypoint] ✗ Failed to register peer after $MAX_RP_RETRIES attempts"
-        echo "[entrypoint] Last error output:"
-        echo "$RP_OUTPUT"
-        kill $PPD_PID 2>/dev/null
-        exit 1
     fi
-else
-    echo "[entrypoint] Skipping peer registration (RPC_PASSWORD or RPC_URL not set)"
+done
+
+if [ "$RP_SUCCESS" = false ]; then
+    echo "[entrypoint] ✗ Failed to register peer after $MAX_RP_RETRIES attempts"
+    echo "[entrypoint] Last error output:"
+    echo "$RP_OUTPUT"
+    kill $PPD_PID 2>/dev/null
+    exit 1
 fi
 
 # Keep container running by waiting on ppd process
