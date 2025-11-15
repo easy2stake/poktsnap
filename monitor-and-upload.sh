@@ -10,8 +10,9 @@ log() {
 log "Starting snapshot upload monitor..."
 
 # Check if required environment variables are set
-if [ -z "$RPC_PASSWORD" ] || [ -z "$RPC_URL" ]; then
-    log "ERROR: RPC_PASSWORD or RPC_URL not set"
+# RPC_PASSWORD can be empty (default for SDS)
+if [ -z "$RPC_URL" ]; then
+    log "ERROR: RPC_URL not set"
     exit 1
 fi
 
