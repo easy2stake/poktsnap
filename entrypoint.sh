@@ -34,5 +34,25 @@ then
 fi
 
 chown -R $RUN_AS_USER $WORK_DIR
+
+# Setup cron job for auto-upload monitoring
+if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
+  echo "[entrypoint] Setting up auto-upload cron job..."
+  
+  # Create cron job that runs every 5 minutes
+  # Pass environment variables to the script
+  # Redirect to Docker's stdout/stderr so logs appear in docker logs
+  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /dev/stdout 2>&1" > /tmp/crontab.tmp
+  
+  # Install crontab for the user
+  crontab -u $RUN_AS_USER /tmp/crontab.tmp
+  rm /tmp/crontab.tmp
+  
+  # Start cron daemon
+  cron
+  
+  echo "[entrypoint] Auto-upload cron job configured (runs every 5 minutes)"
+fi
+
 echo "[entrypoint] Starting as user: $RUN_AS_USER"
 exec gosu "$RUN_AS_USER" "$@"

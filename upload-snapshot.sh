@@ -31,7 +31,7 @@ UPLOAD_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RP
 echo "$UPLOAD_OUTPUT"
 
 # Check if upload was successful
-if echo "$UPLOAD_OUTPUT" | grep -q "has been sent to destinations"; then
+if echo "$UPLOAD_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
     echo ""
     echo "✓ Upload completed successfully"
     

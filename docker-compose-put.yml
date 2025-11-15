@@ -16,6 +16,7 @@ services:
     volumes:
       - ./sds-data:/sds
       - ${ARCHIVE_DIR}:/archive:ro
+      - ./monitor-and-upload.sh:/usr/local/bin/monitor-and-upload.sh:ro
     env_file:
       - .env
 
