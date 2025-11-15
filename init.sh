@@ -30,8 +30,8 @@ USER_GID=$(id -g)
 sed -i.bak "s/your.public.ip.address/$PUBLIC_IP/" .env
 
 # Replace UID and GID with actual values
-sed -i.bak "s/UID=2048/UID=$USER_UID/" .env
-sed -i.bak "s/GID=2048/GID=$USER_GID/" .env
+sed -i.bak "s/SDS_UID=2048/SDS_UID=$USER_UID/" .env
+sed -i.bak "s/SDS_GID=2048/SDS_GID=$USER_GID/" .env
 
 rm .env.bak
 
