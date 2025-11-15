@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  sds-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - SDS_VERSION=${SDS_VERSION:-main}
+        - UID=${SDS_UID:-2048}
+        - GID=${SDS_GID:-2048}
+    image: sds
+    container_name: sds-node
+    ports:
+      - "${NETWORK_PORT:-18081}:${NETWORK_PORT:-18081}"
+    volumes:
+      - ./sds-data:/sds
+      - ${ARCHIVE_DIR}:/archive
+    env_file:
+      - .env
+
