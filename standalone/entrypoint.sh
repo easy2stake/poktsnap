@@ -196,9 +196,7 @@ fi
 
 # Cleanup and exit
 echo "[entrypoint] Shutting down node..."
-kill -SIGINT $PPD_PID 2>/dev/null
-sleep 5
-wait $PPD_PID 2>/dev/null
+kill $PPD_PID 2>/dev/null
 
 echo "[entrypoint] Done!"
 exit 0
