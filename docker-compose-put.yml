@@ -15,7 +15,7 @@ services:
       - "${NETWORK_PORT:-18081}:${NETWORK_PORT:-18081}"
     volumes:
       - ./sds-data:/sds
-      - ${ARCHIVE_DIR}:/archive
+      - ${ARCHIVE_DIR}:/archive:ro
     env_file:
       - .env
 
