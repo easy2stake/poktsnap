@@ -158,6 +158,17 @@ else
     FILENAME="$DOWNLOAD_FILENAME"
 fi
 
+# Check if file already exists
+if [ -f "$WORK_DIR/download/$FILENAME" ]; then
+    echo "[entrypoint] ℹ File already exists: $WORK_DIR/download/$FILENAME"
+    echo "[entrypoint] Skipping download (file already present)"
+    echo "[entrypoint] File location: $WORK_DIR/download/$FILENAME"
+    echo "[entrypoint] Shutting down node..."
+    kill $PPD_PID 2>/dev/null
+    echo "[entrypoint] Done!"
+    exit 0
+fi
+
 # Download with retry logic
 echo "[entrypoint] Downloading $FILENAME (hash: $FILEHASH)..."
 
