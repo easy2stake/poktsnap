@@ -20,7 +20,7 @@ FILENAME="$1"
 
 # Check peer registration status
 echo "Checking peer registration status..."
-RP_OUTPUT=$(docker exec sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
+RP_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
 
 if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
     echo "✓ Peer registered successfully"
@@ -34,7 +34,7 @@ fi
 echo ""
 
 # Get the full file list
-FILE_LIST=$(docker exec sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list)
+FILE_LIST=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list)
 
 if [ "$FILENAME" = "latest" ]; then
     # Find the file with the highest timestamp (4th column)
@@ -81,7 +81,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         echo "Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
     fi
     
-    DOWNLOAD_OUTPUT=$(docker exec -it sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
+    DOWNLOAD_OUTPUT=$(docker exec -u sds -it sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
     echo "$DOWNLOAD_OUTPUT"
     
     # Check if download was successful

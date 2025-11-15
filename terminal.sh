@@ -1,1 +1,1 @@
-docker exec -it sds-node ppd terminal
+docker exec -u sds -it sds-node ppd terminal
