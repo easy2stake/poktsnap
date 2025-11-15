@@ -27,6 +27,10 @@ then
 
   echo "[entrypoint] Set network_port to $NETWORK_PORT"
   sed -i '/\[node\.connectivity\]/,/^\[/ {/network_port/ s/= .*/= '\'$NETWORK_PORT\''/}' $WORK_DIR/config/config.toml
+
+  RPC_NAMESPACES=${RPC_NAMESPACES:-user,owner}
+  echo "[entrypoint] Set rpc_namespaces to '$RPC_NAMESPACES'"
+  sed -i "s/rpc_namespaces = 'user'/rpc_namespaces = '$RPC_NAMESPACES'/" $WORK_DIR/config/config.toml
 fi
 
 chown -R $RUN_AS_USER $WORK_DIR
