@@ -162,9 +162,9 @@ cmd_upload() {
     
     FILEPATH="$1"
     
-    # Check if file exists
-    if [ ! -f "$FILEPATH" ]; then
-        echo "Error: File '$FILEPATH' not found"
+    # Check if file exists inside the container
+    if ! docker exec -u sds sds-node test -f "$FILEPATH"; then
+        echo "Error: File '$FILEPATH' not found inside container"
         exit 1
     fi
     
