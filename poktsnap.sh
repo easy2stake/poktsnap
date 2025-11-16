@@ -22,6 +22,7 @@ show_usage() {
     echo "  list                          List all files in SDS node"
     echo "  download <filename|latest>    Download a file (by name or latest)"
     echo "  upload <file-path>            Upload a file to SDS node"
+    echo "  delete <filehash>             Delete a file from SDS node by hash"
     echo "  shell                         Open bash shell inside container as sds user"
     echo ""
     echo "Examples:"
@@ -29,6 +30,7 @@ show_usage() {
     echo "  $0 download latest"
     echo "  $0 download myfile.tar"
     echo "  $0 upload /path/to/snapshot.tar"
+    echo "  $0 delete v05ahm51csphdaga08tnbu6pck97rs4fls8i2i03"
     echo "  $0 shell"
 }
 
@@ -136,6 +138,41 @@ cmd_download() {
 }
 
 # ============================================================================
+# Command: delete
+# ============================================================================
+cmd_delete() {
+    load_env
+    
+    # Check argument
+    if [ -z "$1" ]; then
+        echo "Error: Missing filehash argument"
+        echo ""
+        echo "Usage: $0 delete <filehash>"
+        echo "  filehash - Hash of the file to delete (use 'list' command to see hashes)"
+        exit 1
+    fi
+    
+    FILEHASH="$1"
+    
+    echo "Deleting file with hash: $FILEHASH"
+    echo ""
+    
+    # Delete the file
+    DELETE_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" delete "$FILEHASH" 2>&1)
+    echo "$DELETE_OUTPUT"
+    
+    # Check if delete was successful
+    if echo "$DELETE_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+        echo ""
+        echo "✓ File deleted successfully"
+    else
+        echo ""
+        echo "✗ Delete may have failed. Please check the output above."
+        exit 1
+    fi
+}
+
+# ============================================================================
 # Command: shell
 # ============================================================================
 cmd_shell() {
@@ -215,6 +252,9 @@ case "$COMMAND" in
         ;;
     upload)
         cmd_upload "$@"
+        ;;
+    delete)
+        cmd_delete "$@"
         ;;
     shell)
         cmd_shell
