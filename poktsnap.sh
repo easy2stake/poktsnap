@@ -22,12 +22,14 @@ show_usage() {
     echo "  list                          List all files in SDS node"
     echo "  download <filename|latest>    Download a file (by name or latest)"
     echo "  upload <file-path>            Upload a file to SDS node"
+    echo "  shell                         Open bash shell inside container as sds user"
     echo ""
     echo "Examples:"
     echo "  $0 list"
     echo "  $0 download latest"
     echo "  $0 download myfile.tar"
     echo "  $0 upload /path/to/snapshot.tar"
+    echo "  $0 shell"
 }
 
 # ============================================================================
@@ -134,6 +136,16 @@ cmd_download() {
 }
 
 # ============================================================================
+# Command: shell
+# ============================================================================
+cmd_shell() {
+    echo "Opening bash shell in container as sds user..."
+    echo ""
+    
+    docker exec -u sds -it sds-node bash
+}
+
+# ============================================================================
 # Command: upload
 # ============================================================================
 cmd_upload() {
@@ -203,6 +215,9 @@ case "$COMMAND" in
         ;;
     upload)
         cmd_upload "$@"
+        ;;
+    shell)
+        cmd_shell
         ;;
     -h|--help|help)
         show_usage
