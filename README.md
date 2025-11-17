@@ -2,7 +2,15 @@
 
 Download POKT snapshots from Stratos Decentralized Storage - quick and simple.
 
-> **Just need to download a snapshot?** If you're looking to simply download a POKT snapshot without running a persistent node, use the [oneshot-downloader tool](./oneshot-downloader/README.md) instead.
+---
+
+## 🚀 Quick Download Only?
+
+**If you just want to download a POKT snapshot without running a persistent node**, check out the **[oneshot-downloader tool →](./oneshot-downloader/README.md)**
+
+It's a simpler, one-time download solution that doesn't require maintaining a running SDS node.
+
+---
 
 ## Prerequisites
 
