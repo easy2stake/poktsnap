@@ -15,10 +15,8 @@ run_quiet() {
     if [ "$DEBUG" = "true" ]; then
         "$@"
     else
-        # Capture stdout and stderr, but always show lines containing 'download_task.go'
-        {
-            "$@"
-        } 2>&1 | awk '/download_task\.go/ { print; next } { next }'
+        # Show only lines containing 'download_task.go', discard everything else (no buffering)
+        "$@" 2>&1 | grep --line-buffered "download_task\.go" || true
     fi
 }
 
