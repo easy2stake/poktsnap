@@ -40,14 +40,22 @@ chown -R $RUN_AS_USER $WORK_DIR
 if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   echo "[entrypoint] Setting up auto-upload cron job..."
   
+  # Create log file for cron output
+  touch /var/log/cron.log
+  chown $RUN_AS_USER:$RUN_AS_USER /var/log/cron.log
+  
+  # Tail the log file to container stdout in background
+  tail -F /var/log/cron.log &
+  TAIL_PID=$!
+  
   # Create cron job that runs every 5 minutes
   # Pass environment variables to the script
   # Set PATH to include /usr/bin where rpcclient is located
-  # Note: Output redirects are handled by cron daemon itself, which logs to stdout
+  # Redirect output to dedicated log file
   echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /tmp/crontab.tmp
-  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh" >> /tmp/crontab.tmp  
+  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1" >> /tmp/crontab.tmp
 
- # Install crontab for the user
+  # Install crontab for the user
   crontab -u $RUN_AS_USER /tmp/crontab.tmp
   rm /tmp/crontab.tmp
   
@@ -58,6 +66,7 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   echo "[entrypoint] Auto-upload cron job configured (runs every 5 minutes)"
 else
   CRON_ENABLED=false
+  TAIL_PID=""
 fi
 
 echo "[entrypoint] Starting as user: $RUN_AS_USER"
@@ -143,6 +152,11 @@ shutdown() {
     # Stop cron if it was enabled
     if [ "$CRON_ENABLED" = "true" ]; then
         pkill -TERM cron 2>/dev/null
+    fi
+    
+    # Stop tail if it was started
+    if [ -n "$TAIL_PID" ]; then
+        kill -TERM $TAIL_PID 2>/dev/null
     fi
     
     echo "[entrypoint] Shutdown complete"
