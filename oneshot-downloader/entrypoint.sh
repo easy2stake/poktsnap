@@ -15,7 +15,10 @@ run_quiet() {
     if [ "$DEBUG" = "true" ]; then
         "$@"
     else
-        "$@" > /dev/null 2>&1
+        # Capture stdout and stderr, but always show lines containing 'download_task.go'
+        {
+            "$@"
+        } 2>&1 | awk '/download_task\.go/ { print; next } { next }'
     fi
 }
 
