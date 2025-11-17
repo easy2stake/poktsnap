@@ -2,6 +2,8 @@
 
 Download POKT snapshots from Stratos Decentralized Storage - quick and simple.
 
+> **Just need to download a snapshot?** If you're looking to simply download a POKT snapshot without running a persistent node, use the [oneshot-downloader tool](./oneshot-downloader/README.md) instead.
+
 ## Prerequisites
 
 - Docker
