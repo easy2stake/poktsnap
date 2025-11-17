@@ -5,12 +5,37 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
 IMAGE_NAME="poktsnap"
 TAG="local"
 DOWNLOAD_DIR="${1:-./downloads}"  # Use first argument or default to ./downloads
+USE_PERSISTENT="${2:-false}"       # Use second argument to enable persistent mode
+
+# Show usage if --help is passed
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo -e "${GREEN}=== PokTSnap Build and Run ===${NC}"
+    echo ""
+    echo "Usage: $0 [DOWNLOAD_DIR] [PERSISTENT]"
+    echo ""
+    echo "Arguments:"
+    echo "  DOWNLOAD_DIR    Directory for downloaded files (default: ./downloads)"
+    echo "  PERSISTENT      Use persistent volume for /sds (true/false, default: false)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                          # Basic usage with ./downloads"
+    echo "  $0 /path/to/downloads       # Custom download directory"
+    echo "  $0 ./downloads true         # With persistent SDS volume (faster subsequent runs)"
+    echo ""
+    echo "Persistent mode benefits:"
+    echo "  - Faster subsequent runs (reuses config/keys)"
+    echo "  - Handles IP address changes automatically"
+    echo "  - Named volume: poktsnap_sds_data"
+    echo ""
+    exit 0
+fi
 
 echo -e "${GREEN}=== PokTSnap Build and Run ===${NC}"
 echo ""
@@ -34,16 +59,31 @@ echo ""
 echo -e "${GREEN}Step 2/2: Running container...${NC}"
 echo -e "Download directory: ${DOWNLOAD_DIR}"
 echo -e "Image: ${IMAGE_NAME}:${TAG}"
+echo -e "Persistent mode: ${USE_PERSISTENT}"
 echo ""
+
+# Build volume arguments based on mode
+VOLUME_ARGS=()
+if [ "$USE_PERSISTENT" = "true" ]; then
+    echo -e "${BLUE}Using named volume 'poktsnap_sds_data' for /sds${NC}"
+    echo -e "${BLUE}This will speed up subsequent runs and handle IP changes${NC}"
+    VOLUME_ARGS+=(-v "poktsnap_sds_data:/sds")
+fi
+VOLUME_ARGS+=(-v "$(realpath "$DOWNLOAD_DIR"):/sds/download")
 
 # Run the container
 docker run --rm \
     -p 18081:18081 \
-    -v "$(realpath "$DOWNLOAD_DIR"):/sds/download" \
+    "${VOLUME_ARGS[@]}" \
     ${IMAGE_NAME}:${TAG}
 
 echo ""
 echo -e "${GREEN}=== Done! ===${NC}"
 echo -e "Downloaded files are in: $DOWNLOAD_DIR"
+if [ "$USE_PERSISTENT" = "true" ]; then
+    echo ""
+    echo -e "${BLUE}Tip: Next run will be faster using the persistent volume!${NC}"
+    echo -e "${BLUE}To remove the volume: docker volume rm poktsnap_sds_data${NC}"
+fi
 echo ""
 

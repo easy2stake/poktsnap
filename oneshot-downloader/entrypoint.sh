@@ -35,15 +35,18 @@ then
   printf "\n\n3\n" | $PPD_BIN config --create-p2p-key --home $WORK_DIR
   printf "\n" | $PPD_BIN config accounts --mnemonic "$MNEMONIC_PHRASE" --home $WORK_DIR
 
+  RPC_NAMESPACES=${RPC_NAMESPACES:-user,owner}
+  echo "[entrypoint] Set rpc_namespaces to '$RPC_NAMESPACES'"
+  sed -i "s/rpc_namespaces = 'user'/rpc_namespaces = '$RPC_NAMESPACES'/" $WORK_DIR/config/config.toml
+fi
+
+# Always update network_address and network_port (handles IP changes with persistent volumes)
+if [ -f "$WORK_DIR/config/config.toml" ]; then
   echo "[entrypoint] Set network_address to '$NETWORK_ADDRESS'"
   sed -i '/\[node\.connectivity\]/,/^\[/ {/network_address/ s/= .*/= '\'$NETWORK_ADDRESS\''/}' $WORK_DIR/config/config.toml
 
   echo "[entrypoint] Set network_port to $NETWORK_PORT"
   sed -i '/\[node\.connectivity\]/,/^\[/ {/network_port/ s/= .*/= '\'$NETWORK_PORT\''/}' $WORK_DIR/config/config.toml
-
-  RPC_NAMESPACES=${RPC_NAMESPACES:-user,owner}
-  echo "[entrypoint] Set rpc_namespaces to '$RPC_NAMESPACES'"
-  sed -i "s/rpc_namespaces = 'user'/rpc_namespaces = '$RPC_NAMESPACES'/" $WORK_DIR/config/config.toml
 fi
 
 chown -R $RUN_AS_USER $WORK_DIR

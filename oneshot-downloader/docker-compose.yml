@@ -1,0 +1,17 @@
+services:
+  poktsnap-downloader:
+    image: ghcr.io/easy2stake/poktsnap:latest
+    container_name: poktsnap-oneshot
+    ports:
+      - "18081:18081"
+    volumes:
+      - sds_data:/sds
+      - ./downloads:/sds/download
+    environment:
+      # Download the latest snapshot (or specify exact filename)
+      - DOWNLOAD_FILENAME=latest
+      - NETWORK_PORT=18081
+volumes:
+  sds_data:
+    name: poktsnap_sds_data
+

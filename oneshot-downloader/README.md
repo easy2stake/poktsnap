@@ -34,6 +34,37 @@ docker run --rm \
   ghcr.io/easy2stake/poktsnap:latest
 ```
 
+### Using Persistent Volumes (Faster Subsequent Runs)
+
+For repeated downloads, use a named volume to persist the SDS configuration and keys. This significantly speeds up subsequent runs and automatically handles IP address changes:
+
+```bash
+docker run --rm \
+  -p 18081:18081 \
+  -v poktsnap_sds_data:/sds \
+  -v ./downloads:/sds/download \
+  ghcr.io/easy2stake/poktsnap:latest
+```
+
+**Benefits:**
+- Faster subsequent runs (skips P2P key generation and account setup)
+- Automatically updates network address when IP changes
+- Configuration persists between runs
+
+**Using docker-compose:**
+
+```bash
+docker-compose up
+```
+
+See `docker-compose.yml` for configuration options.
+
+**Using build-and-run.sh with persistence:**
+
+```bash
+./build-and-run.sh ./downloads true
+```
+
 ## Environment Variables
 
 All environment variables are optional. The container works out-of-the-box with sensible defaults.
