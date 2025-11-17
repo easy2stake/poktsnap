@@ -50,21 +50,27 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ] || [ -f /usr/local/bin/cleanup-ol
   
   # Create crontab with environment variables
   # Variables set at the top are automatically available to all cron jobs
-  cat > /tmp/crontab.tmp <<EOF
+  cat > /tmp/crontab.tmp <<'EOF_CRONTAB'
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-RPC_PASSWORD=$RPC_PASSWORD
-RPC_URL=$RPC_URL
-SNAP_DATA_PATTERN=$SNAP_DATA_PATTERN
-ARCHIVE_DATA_PATTERN=$ARCHIVE_DATA_PATTERN
-SNAP_DATA_RETENTION=$SNAP_DATA_RETENTION
-ARCHIVE_DATA_RETENTION=$ARCHIVE_DATA_RETENTION
+EOF_CRONTAB
+  
+  # Add environment variables (properly escaped)
+  echo "RPC_PASSWORD=\"$RPC_PASSWORD\"" >> /tmp/crontab.tmp
+  echo "RPC_URL=\"$RPC_URL\"" >> /tmp/crontab.tmp
+  echo "SNAP_DATA_PATTERN=\"$SNAP_DATA_PATTERN\"" >> /tmp/crontab.tmp
+  echo "ARCHIVE_DATA_PATTERN=\"$ARCHIVE_DATA_PATTERN\"" >> /tmp/crontab.tmp
+  echo "SNAP_DATA_RETENTION=\"$SNAP_DATA_RETENTION\"" >> /tmp/crontab.tmp
+  echo "ARCHIVE_DATA_RETENTION=\"$ARCHIVE_DATA_RETENTION\"" >> /tmp/crontab.tmp
+  
+  # Add cron jobs
+  cat >> /tmp/crontab.tmp <<'EOF_CRONTAB'
 
 # Auto-upload monitoring - runs every 5 minutes
 */5 * * * * /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1
 # Retention cleanup - runs every hour
 0 * * * * /usr/local/bin/cleanup-old-snapshots.sh >> /var/log/cron.log 2>&1
-EOF
+EOF_CRONTAB
 
   # Install crontab for the user
   crontab -u $RUN_AS_USER /tmp/crontab.tmp
