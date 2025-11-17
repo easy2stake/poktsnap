@@ -43,21 +43,6 @@ The `poktsnap.sh` CLI provides a unified interface for all snapshot operations:
 ./poktsnap.sh shell                        # Open interactive shell in container
 ```
 
-### Using Individual Scripts
-
-Alternatively, you can use the standalone scripts in the `scripts/` folder:
-
-```bash
-# Download snapshot
-./scripts/download-snapshot.sh <filename|latest>
-
-# Upload snapshot
-./scripts/upload-snapshot.sh <file-path>
-```
-
-Make sure `.env` is configured first (run `./init.sh` if not done already).
-
-
 ## Terminal Commands
 
 Open terminal: `./terminal.sh`
