@@ -21,22 +21,39 @@ This will:
 
 ---
 
-## Downloading Snapshots
+## Managing Snapshots
 
-You can download a POKT snapshot from Stratos Storage at any time using the helper script:
+### Using the CLI Tool (Recommended)
+
+The `poktsnap.sh` CLI provides a unified interface for all snapshot operations:
 
 ```bash
-./download-snapshot.sh <filename|latest>
+./poktsnap.sh <command> [args]
 ```
 
-Where:
-- `latest` will fetch the most recent snapshot tarball available.
-- `<filename>` is the exact tarball name you want to download.
+**Available Commands:**
 
-This script will:
-- Check your peer registration status
-- Fetch the available file list
-- Download the snapshot, with retries, to your current directory
+```bash
+
+./poktsnap.sh list                         # List all files in SDS storage
+./poktsnap.sh download latest              # Download most recent snapshot
+./poktsnap.sh download <filename>          # Download specific file
+./poktsnap.sh upload /path/to/file.tar     # Upload a snapshot (file must exist inside container)
+./poktsnap.sh delete <filehash>            # Delete a file from storage
+./poktsnap.sh shell                        # Open interactive shell in container
+```
+
+### Using Individual Scripts
+
+Alternatively, you can use the standalone scripts in the `scripts/` folder:
+
+```bash
+# Download snapshot
+./scripts/download-snapshot.sh <filename|latest>
+
+# Upload snapshot
+./scripts/upload-snapshot.sh <file-path>
+```
 
 Make sure `.env` is configured first (run `./init.sh` if not done already).
 
