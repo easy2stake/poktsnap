@@ -137,6 +137,70 @@ fi
 echo "[entrypoint] Fetching file list..."
 FILE_LIST=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
 
+# List mode: display available files and exit
+if [ "$DOWNLOAD_FILENAME" = "list" ]; then
+    echo ""
+    echo "=========================================="
+    echo "Available Snapshot Files"
+    echo "=========================================="
+    echo ""
+    
+    # Filter and display .tar files in a formatted table
+    TAR_FILES=$(echo "$FILE_LIST" | grep ".tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
+    
+    if [ -z "$TAR_FILES" ]; then
+        echo "No snapshot files found."
+    else
+        # Print header
+        printf "%-50s %-12s %-20s\n" "FILENAME" "SIZE" "TIMESTAMP"
+        printf "%-50s %-12s %-20s\n" "--------" "----" "---------"
+        
+        # Print each file
+        echo "$TAR_FILES" | while IFS= read -r line; do
+            FNAME=$(echo "$line" | awk '{print $1}')
+            FSIZE=$(echo "$line" | awk '{print $3}')
+            FTIME=$(echo "$line" | awk '{print $4}')
+            
+            # Convert timestamp to readable date if it's a unix timestamp
+            if [ -n "$FTIME" ] && [ "$FTIME" -gt 0 ] 2>/dev/null; then
+                FDATE=$(date -r "$FTIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$FTIME")
+            else
+                FDATE="$FTIME"
+            fi
+            
+            # Format size to be more readable
+            if [ -n "$FSIZE" ] && [ "$FSIZE" -gt 0 ] 2>/dev/null; then
+                if [ "$FSIZE" -gt 1073741824 ]; then
+                    FSIZE_DISPLAY="$(awk "BEGIN {printf \"%.2f GB\", $FSIZE/1073741824}")"
+                elif [ "$FSIZE" -gt 1048576 ]; then
+                    FSIZE_DISPLAY="$(awk "BEGIN {printf \"%.2f MB\", $FSIZE/1048576}")"
+                else
+                    FSIZE_DISPLAY="${FSIZE} bytes"
+                fi
+            else
+                FSIZE_DISPLAY="$FSIZE"
+            fi
+            
+            printf "%-50s %-12s %-20s\n" "$FNAME" "$FSIZE_DISPLAY" "$FDATE"
+        done
+        
+        echo ""
+        echo "Total files: $(echo "$TAR_FILES" | wc -l | tr -d ' ')"
+    fi
+    
+    echo ""
+    echo "To download a file, set DOWNLOAD_FILENAME to:"
+    echo "  - 'latest' (default) for the most recent snapshot"
+    echo "  - specific filename from the list above"
+    echo ""
+    
+    # Cleanup and exit
+    echo "[entrypoint] Shutting down node..."
+    kill $PPD_PID 2>/dev/null
+    wait $PPD_PID 2>/dev/null
+    exit 0
+fi
+
 if [ "$DOWNLOAD_FILENAME" = "latest" ]; then
     echo "[entrypoint] Finding latest snapshot..."
     # Find the most recent .tar file

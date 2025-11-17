@@ -11,14 +11,27 @@ NC='\033[0m' # No Color
 # Configuration
 IMAGE_NAME="poktsnap"
 TAG="local"
-DOWNLOAD_DIR="${1:-./downloads}"  # Use first argument or default to ./downloads
-USE_PERSISTENT="${2:-false}"       # Use second argument to enable persistent mode
+LIST_MODE=false
+
+# Check for --list flag
+if [ "$1" = "--list" ] || [ "$1" = "-l" ]; then
+    LIST_MODE=true
+    DOWNLOAD_DIR="${2:-./downloads}"
+    USE_PERSISTENT="${3:-false}"
+else
+    DOWNLOAD_DIR="${1:-./downloads}"
+    USE_PERSISTENT="${2:-false}"
+fi
 
 # Show usage if --help is passed
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo -e "${GREEN}=== PokTSnap Build and Run ===${NC}"
     echo ""
-    echo "Usage: $0 [DOWNLOAD_DIR] [PERSISTENT]"
+    echo "Usage: $0 [OPTIONS] [DOWNLOAD_DIR] [PERSISTENT]"
+    echo ""
+    echo "Options:"
+    echo "  --list, -l      List available snapshot files without downloading"
+    echo "  --help, -h      Show this help message"
     echo ""
     echo "Arguments:"
     echo "  DOWNLOAD_DIR    Directory for downloaded files (default: ./downloads)"
@@ -26,8 +39,10 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo ""
     echo "Examples:"
     echo "  $0                          # Basic usage with ./downloads"
+    echo "  $0 --list                   # List available snapshot files"
     echo "  $0 /path/to/downloads       # Custom download directory"
     echo "  $0 ./downloads true         # With persistent SDS volume (faster subsequent runs)"
+    echo "  $0 --list ./downloads true  # List files with persistent volume"
     echo ""
     echo "Persistent mode benefits:"
     echo "  - Faster subsequent runs (reuses config/keys)"
@@ -60,6 +75,9 @@ echo -e "${GREEN}Step 2/2: Running container...${NC}"
 echo -e "Download directory: ${DOWNLOAD_DIR}"
 echo -e "Image: ${IMAGE_NAME}:${TAG}"
 echo -e "Persistent mode: ${USE_PERSISTENT}"
+if [ "$LIST_MODE" = "true" ]; then
+    echo -e "${BLUE}List mode: Will display available files${NC}"
+fi
 echo ""
 
 # Build volume arguments based on mode
@@ -71,10 +89,17 @@ if [ "$USE_PERSISTENT" = "true" ]; then
 fi
 VOLUME_ARGS+=(-v "$(realpath "$DOWNLOAD_DIR"):/sds/download")
 
+# Build environment arguments
+ENV_ARGS=()
+if [ "$LIST_MODE" = "true" ]; then
+    ENV_ARGS+=(-e "DOWNLOAD_FILENAME=list")
+fi
+
 # Run the container
 docker run --rm \
     -p 18081:18081 \
     "${VOLUME_ARGS[@]}" \
+    "${ENV_ARGS[@]}" \
     ${IMAGE_NAME}:${TAG}
 
 echo ""

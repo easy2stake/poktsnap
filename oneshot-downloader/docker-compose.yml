@@ -9,7 +9,9 @@ services:
       - ./downloads:/sds/download
     environment:
       # Download the latest snapshot (or specify exact filename)
+      # Set to 'list' to see all available files without downloading
       - DOWNLOAD_FILENAME=latest
+      # - DOWNLOAD_FILENAME=list
       - NETWORK_PORT=18081
 volumes:
   sds_data:

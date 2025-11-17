@@ -34,6 +34,48 @@ docker run --rm \
   ghcr.io/easy2stake/poktsnap:latest
 ```
 
+### List Available Files
+
+Before downloading, you can list all available snapshot files to see what's available:
+
+```bash
+docker run --rm \
+  -p 18081:18081 \
+  -e DOWNLOAD_FILENAME=list \
+  ghcr.io/easy2stake/poktsnap:latest
+```
+
+**Output example:**
+```
+==========================================
+Available Snapshot Files
+==========================================
+
+FILENAME                                           SIZE         TIMESTAMP           
+--------                                           ----         ---------           
+pocket-snap-data-20251117000201.tar.gz             45.23 GB     2025-11-17 00:02:01
+pocket-snap-data-20251116000201.tar.gz             45.18 GB     2025-11-16 00:02:01
+pocket-snap-data-20251115000201.tar.gz             45.12 GB     2025-11-15 00:02:01
+
+Total files: 3
+
+To download a file, set DOWNLOAD_FILENAME to:
+  - 'latest' (default) for the most recent snapshot
+  - specific filename from the list above
+```
+
+**Using docker-compose to list files:**
+
+```bash
+docker-compose run -e DOWNLOAD_FILENAME=list poktsnap-downloader
+```
+
+**Using build-and-run.sh to list files:**
+
+```bash
+./build-and-run.sh --list
+```
+
 ### Using Persistent Volumes (Faster Subsequent Runs)
 
 For repeated downloads, use a named volume to persist the SDS configuration and keys. This significantly speeds up subsequent runs and automatically handles IP address changes:
@@ -73,7 +115,7 @@ All environment variables are optional. The container works out-of-the-box with 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DOWNLOAD_FILENAME` | `latest` | File to download. Use `latest` for most recent .tar file, or specify exact filename like `pocket-snap-data-20251104000201.tar.gz` |
+| `DOWNLOAD_FILENAME` | `latest` | File to download. Use `latest` for most recent .tar file, `list` to display all available files, or specify exact filename like `pocket-snap-data-20251104000201.tar.gz` |
 | `NETWORK_ADDRESS` | auto-detected | Your public IP address. Auto-detected via `ip.me` if not set |
 | `NETWORK_PORT` | `18081` | P2P network port. Must match the exposed Docker port |
 
