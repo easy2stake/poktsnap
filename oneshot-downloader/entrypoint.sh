@@ -160,6 +160,13 @@ fi
 echo "[entrypoint] Fetching file list..."
 FILE_LIST=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
 
+# Temporary debug - show raw output
+if [ "$DEBUG" = "true" ]; then
+    echo "=== RAW FILE_LIST ==="
+    echo "$FILE_LIST"
+    echo "=== END RAW ==="
+fi
+
 # List mode: display available files and exit
 if [ "$DOWNLOAD_FILENAME" = "list" ]; then
     echo ""
@@ -186,7 +193,7 @@ if [ "$DOWNLOAD_FILENAME" = "list" ]; then
             
             # Convert timestamp to readable date if it's a unix timestamp
             if [ -n "$FTIME" ] && [ "$FTIME" -gt 0 ] 2>/dev/null; then
-                FDATE=$(date -r "$FTIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$FTIME")
+                FDATE=$(date -d "@$FTIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$FTIME")
             else
                 FDATE="$FTIME"
             fi
