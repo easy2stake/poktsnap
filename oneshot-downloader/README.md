@@ -83,6 +83,7 @@ All environment variables are optional. The container works out-of-the-box with 
 | `RPC_URL` | `http://127.0.0.1:18281` | Internal RPC endpoint |
 | `RPC_PASSWORD` | (empty) | Password for RPC client |
 | `RPC_NAMESPACES` | `user,owner` | RPC namespaces to enable |
+| `DEBUG` | `false` | Set to `true` to show ppd process output for debugging |
 
 ### Build-time Configuration
 

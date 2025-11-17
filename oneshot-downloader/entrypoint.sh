@@ -8,6 +8,7 @@ RPCCLIENT_BIN=/usr/bin/rpcclient
 RPC_URL=${RPC_URL:-http://127.0.0.1:18281}
 RPC_PASSWORD=${RPC_PASSWORD:-}
 DOWNLOAD_FILENAME=${DOWNLOAD_FILENAME:-latest}
+DEBUG=${DEBUG:-false}
 
 # Default mnemonic phrase (can be overridden via environment variable)
 DEFAULT_MNEMONIC="believe devote local make usual emotion glare mushroom fashion opinion flush scout travel uniform private sing hollow slam mirror trip clump exist clutch audit"
@@ -52,15 +53,30 @@ fi
 chown -R $RUN_AS_USER $WORK_DIR
 echo "[entrypoint] Starting as user: $RUN_AS_USER"
 
-# Start ppd in background
-gosu "$RUN_AS_USER" ppd start &
+# Start ppd in background (hide output unless DEBUG=true)
+if [ "$DEBUG" = "true" ]; then
+    echo "[entrypoint] Debug mode enabled - showing ppd output"
+    gosu "$RUN_AS_USER" ppd start &
+else
+    gosu "$RUN_AS_USER" ppd start > /dev/null 2>&1 &
+fi
 PPD_PID=$!
+
+# Helper function to stop ppd cleanly (respects DEBUG mode)
+stop_ppd() {
+    if [ "$DEBUG" = "true" ]; then
+        kill -TERM $PPD_PID
+        wait $PPD_PID
+    else
+        kill -TERM $PPD_PID 2>/dev/null
+        wait $PPD_PID 2>/dev/null
+    fi
+}
 
 # Setup signal handling for graceful shutdown
 shutdown() {
     echo "[entrypoint] Received shutdown signal, stopping ppd..."
-    kill -TERM $PPD_PID 2>/dev/null
-    wait $PPD_PID 2>/dev/null
+    stop_ppd
     echo "[entrypoint] Shutdown complete"
     exit 1
 }
@@ -85,7 +101,7 @@ done
 
 if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
     echo "[entrypoint] ✗ Timeout waiting for node to be ready"
-    kill $PPD_PID 2>/dev/null
+    stop_ppd
     exit 1
 fi
 
@@ -129,7 +145,7 @@ if [ "$RP_SUCCESS" = false ]; then
     echo "[entrypoint] ✗ Failed to register peer after $MAX_RP_RETRIES attempts"
     echo "[entrypoint] Last error output:"
     echo "$RP_OUTPUT"
-    kill $PPD_PID 2>/dev/null
+    stop_ppd
     exit 1
 fi
 
@@ -196,8 +212,7 @@ if [ "$DOWNLOAD_FILENAME" = "list" ]; then
     
     # Cleanup and exit
     echo "[entrypoint] Shutting down node..."
-    kill $PPD_PID 2>/dev/null
-    wait $PPD_PID 2>/dev/null
+    stop_ppd
     exit 0
 fi
 
@@ -212,7 +227,7 @@ if [ "$DOWNLOAD_FILENAME" = "latest" ]; then
     
     if [ -z "$MOST_RECENT_FILE" ]; then
         echo "[entrypoint] ✗ No .tar files found"
-        kill $PPD_PID 2>/dev/null
+        stop_ppd
         exit 1
     fi
     
@@ -229,7 +244,7 @@ else
     
     if [ -z "$FILEHASH" ]; then
         echo "[entrypoint] ✗ File '$DOWNLOAD_FILENAME' not found"
-        kill $PPD_PID 2>/dev/null
+        stop_ppd
         exit 1
     fi
     
@@ -242,7 +257,7 @@ if [ -f "$WORK_DIR/download/$FILENAME" ]; then
     echo "[entrypoint] Skipping download (file already present)"
     echo "[entrypoint] File location: $WORK_DIR/download/$FILENAME"
     echo "[entrypoint] Shutting down node..."
-    kill $PPD_PID 2>/dev/null
+    stop_ppd
     echo "[entrypoint] Done!"
     exit 0
 fi
@@ -269,7 +284,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             sleep 2
         else
             echo "[entrypoint] ✗ Download failed after $MAX_RETRIES attempts (response code: -5)"
-            kill $PPD_PID 2>/dev/null
+            stop_ppd
             exit 1
         fi
     else
@@ -285,7 +300,7 @@ fi
 
 # Cleanup and exit
 echo "[entrypoint] Shutting down node..."
-kill $PPD_PID 2>/dev/null
+stop_ppd
 
 echo "[entrypoint] Done!"
 exit 0
