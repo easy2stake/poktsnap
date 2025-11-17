@@ -17,6 +17,7 @@ services:
       - ./sds-data:/sds
       - ${ARCHIVE_DIR}:/archive:ro
       - ./scripts/monitor-and-upload.sh:/usr/local/bin/monitor-and-upload.sh:ro
+      - ./scripts/cleanup-old-snapshots.sh:/usr/local/bin/cleanup-old-snapshots.sh:ro
       - ./scripts/rpc-utils.sh:/usr/local/bin/rpc-utils.sh:ro
     env_file:
       - .env

@@ -36,9 +36,9 @@ fi
 
 chown -R $RUN_AS_USER $WORK_DIR
 
-# Setup cron job for auto-upload monitoring
-if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
-  echo "[entrypoint] Setting up auto-upload cron job..."
+# Setup cron jobs for auto-upload monitoring and cleanup
+if [ -f /usr/local/bin/monitor-and-upload.sh ] || [ -f /usr/local/bin/cleanup-old-snapshots.sh ]; then
+  echo "[entrypoint] Setting up cron jobs..."
   
   # Create log file for cron output
   touch /var/log/cron.log
@@ -48,12 +48,23 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   tail -F /var/log/cron.log &
   TAIL_PID=$!
   
-  # Create cron job that runs every 5 minutes
-  # Pass environment variables to the script
-  # Set PATH to include /usr/bin where rpcclient is located
-  # Redirect output to dedicated log file
-  echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /tmp/crontab.tmp
-  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1" >> /tmp/crontab.tmp
+  # Create crontab with environment variables
+  # Variables set at the top are automatically available to all cron jobs
+  cat > /tmp/crontab.tmp <<EOF
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+RPC_PASSWORD=$RPC_PASSWORD
+RPC_URL=$RPC_URL
+SNAP_DATA_PATTERN=$SNAP_DATA_PATTERN
+ARCHIVE_DATA_PATTERN=$ARCHIVE_DATA_PATTERN
+SNAP_DATA_RETENTION=$SNAP_DATA_RETENTION
+ARCHIVE_DATA_RETENTION=$ARCHIVE_DATA_RETENTION
+
+# Auto-upload monitoring - runs every 5 minutes
+*/5 * * * * /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1
+# Retention cleanup - runs every hour
+0 * * * * /usr/local/bin/cleanup-old-snapshots.sh >> /var/log/cron.log 2>&1
+EOF
 
   # Install crontab for the user
   crontab -u $RUN_AS_USER /tmp/crontab.tmp
@@ -63,7 +74,9 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   cron
   CRON_ENABLED=true
   
-  echo "[entrypoint] Auto-upload cron job configured (runs every 5 minutes)"
+  echo "[entrypoint] - Auto-upload monitoring: every 5 minutes"
+  echo "[entrypoint] - Retention cleanup: every hour"
+  echo "[entrypoint] Cron jobs configured"
 else
   CRON_ENABLED=false
   TAIL_PID=""
