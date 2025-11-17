@@ -56,9 +56,9 @@ fi
 
 # Check if file already exists
 if docker exec -u sds sds-node test -f "$WORK_DIR/download/$FILENAME" 2>/dev/null; then
-    echo "ℹ File already exists: $WORK_DIR/download/$FILENAME"
+    echo "ℹ File already exists: ./sds-data/download/$FILENAME"
     echo "Skipping download (file already present)"
-    echo "File location: $WORK_DIR/download/$FILENAME"
+    echo "File location: ./sds-data/download/$FILENAME"
     exit 0
 fi
 
@@ -98,6 +98,6 @@ done
 if [ "$DOWNLOAD_SUCCESS" = true ]; then
     echo ""
     echo "✓ Download completed successfully"
-    echo "File location: ./download/$FILENAME"
+    echo "File location: ./sds-data/download/$FILENAME"
 fi
 
