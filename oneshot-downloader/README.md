@@ -64,18 +64,6 @@ To download a file, set DOWNLOAD_FILENAME to:
   - specific filename from the list above
 ```
 
-**Using docker-compose to list files:**
-
-```bash
-docker-compose run -e DOWNLOAD_FILENAME=list poktsnap-downloader
-```
-
-**Using build-and-run.sh to list files:**
-
-```bash
-./build-and-run.sh --list
-```
-
 ### Using Persistent Volumes (Faster Subsequent Runs)
 
 For repeated downloads, use a named volume to persist the SDS configuration and keys. This significantly speeds up subsequent runs and automatically handles IP address changes:
@@ -92,20 +80,6 @@ docker run --rm \
 - Faster subsequent runs (skips P2P key generation and account setup)
 - Automatically updates network address when IP changes
 - Configuration persists between runs
-
-**Using docker-compose:**
-
-```bash
-docker-compose up
-```
-
-See `docker-compose.yml` for configuration options.
-
-**Using build-and-run.sh with persistence:**
-
-```bash
-./build-and-run.sh ./downloads true
-```
 
 ## Environment Variables
 
