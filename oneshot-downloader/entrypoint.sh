@@ -15,8 +15,7 @@ run_quiet() {
     if [ "$DEBUG" = "true" ]; then
         "$@"
     else
-        # Show only lines containing 'download_task.go', discard everything else (no buffering)
-        "$@" 2>&1 | grep --line-buffered "download_task\.go" || true
+       "$@" > /dev/null 2>&1
     fi
 }
 
@@ -326,14 +325,38 @@ fi
 # Download with retry logic
 echo "[entrypoint] Downloading $FILENAME (hash: $FILEHASH)..."
 
-# Success check: download succeeds when output does NOT contain "return:  -5"
-if DOWNLOAD_OUTPUT=$(retry_with_backoff 5 2 '! grep -q "return:  -5"' rpc_call get "sdm://${WALLET_ADDRESS}/${FILEHASH}"); then
+MAX_RETRIES=5
+RETRY_COUNT=0
+DOWNLOAD_SUCCESS=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if [ $RETRY_COUNT -gt 0 ]; then
+        echo "[entrypoint] Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
+    fi
+    
+    DOWNLOAD_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
+    
+    # Check if download was successful
+    if echo "$DOWNLOAD_OUTPUT" | grep -q "return:  -5"; then
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo "[entrypoint] ⚠ Download failed (response code: -5), retrying..."
+            sleep 2
+        else
+            echo "[entrypoint] ✗ Download failed after $MAX_RETRIES attempts (response code: -5)"
+            stop_ppd
+            exit 1
+        fi
+    else
+        DOWNLOAD_SUCCESS=true
+        break
+    fi
+done
+
+if [ "$DOWNLOAD_SUCCESS" = true ]; then
     echo "[entrypoint] ✓ Download completed successfully"
     echo "[entrypoint] File location: $WORK_DIR/download/$FILENAME"
-else
-    echo "[entrypoint] ✗ Download failed after 5 attempts (response code: -5)"
-    stop_ppd
-    exit 1
+
 fi
 
 # Cleanup and exit
