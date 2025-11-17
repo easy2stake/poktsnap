@@ -19,6 +19,74 @@ run_quiet() {
     fi
 }
 
+# Wrapper for RPC client calls to avoid repetitive gosu + credentials
+rpc_call() {
+    gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" "$@" 2>&1
+}
+
+# Generic retry logic with exponential backoff
+# Usage: retry_with_backoff MAX_RETRIES SLEEP_SECONDS SUCCESS_CHECK COMMAND [ARGS...]
+# Returns: 0 on success, 1 on failure (outputs result to stdout/stderr)
+retry_with_backoff() {
+    local max_retries="$1"
+    local sleep_seconds="$2"
+    local success_check="$3"
+    shift 3
+    
+    local retry_count=0
+    local output
+    
+    while [ $retry_count -lt $max_retries ]; do
+        if [ $retry_count -gt 0 ]; then
+            echo "[entrypoint] Retry attempt $retry_count of $max_retries..."
+        fi
+        
+        output=$("$@")
+        
+        if eval "$success_check \"\$output\""; then
+            echo "$output"
+            return 0
+        fi
+        
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            sleep "$sleep_seconds"
+        fi
+    done
+    
+    echo "$output" >&2
+    return 1
+}
+
+# Format file size to human-readable format (bytes -> MB/GB)
+format_size() {
+    local size="$1"
+    
+    if [ -z "$size" ] || ! [ "$size" -gt 0 ] 2>/dev/null; then
+        echo "$size"
+        return
+    fi
+    
+    if [ "$size" -gt 1073741824 ]; then
+        awk "BEGIN {printf \"%.2f GB\", $size/1073741824}"
+    elif [ "$size" -gt 1048576 ]; then
+        awk "BEGIN {printf \"%.2f MB\", $size/1048576}"
+    else
+        echo "${size} bytes"
+    fi
+}
+
+# Format Unix timestamp to readable date
+format_timestamp() {
+    local timestamp="$1"
+    
+    if [ -n "$timestamp" ] && [ "$timestamp" -gt 0 ] 2>/dev/null; then
+        date -d "@$timestamp" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$timestamp"
+    else
+        echo "$timestamp"
+    fi
+}
+
 # Default mnemonic phrase (can be overridden via environment variable)
 DEFAULT_MNEMONIC="believe devote local make usual emotion glare mushroom fashion opinion flush scout travel uniform private sing hollow slam mirror trip clump exist clutch audit"
 MNEMONIC_PHRASE=${MNEMONIC_PHRASE:-$DEFAULT_MNEMONIC}
@@ -123,7 +191,7 @@ while [ $RP_RETRY_COUNT -lt $MAX_RP_RETRIES ]; do
         echo "[entrypoint] Retry attempt $RP_RETRY_COUNT of $MAX_RP_RETRIES..."
     fi
     
-    RP_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" rp 2>&1)
+    RP_OUTPUT=$(rpc_call rp)
     
     if echo "$RP_OUTPUT" | grep -q "return: SUCCESS"; then
         echo "[entrypoint] ✓ Peer registered successfully"
@@ -158,7 +226,9 @@ fi
 
 # Get file list
 echo "[entrypoint] Fetching file list..."
-FILE_LIST=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
+FILE_LIST=$(rpc_call list)
+# Filter and display .tar files in a formatted table (exclude debug lines)
+TAR_FILES=$(echo "$FILE_LIST" | grep -v "^\[DEBUG\]" | grep "\.tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
 
 # Temporary debug - show raw output
 if [ "$DEBUG" = "true" ]; then
@@ -174,10 +244,7 @@ if [ "$DOWNLOAD_FILENAME" = "list" ]; then
     echo "Available Snapshot Files"
     echo "=========================================="
     echo ""
-    
-    # Filter and display .tar files in a formatted table
-    TAR_FILES=$(echo "$FILE_LIST" | grep ".tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
-    
+        
     if [ -z "$TAR_FILES" ]; then
         echo "No snapshot files found."
     else
@@ -191,25 +258,8 @@ if [ "$DOWNLOAD_FILENAME" = "list" ]; then
             FSIZE=$(echo "$line" | awk '{print $3}')
             FTIME=$(echo "$line" | awk '{print $4}')
             
-            # Convert timestamp to readable date if it's a unix timestamp
-            if [ -n "$FTIME" ] && [ "$FTIME" -gt 0 ] 2>/dev/null; then
-                FDATE=$(date -d "@$FTIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$FTIME")
-            else
-                FDATE="$FTIME"
-            fi
-            
-            # Format size to be more readable
-            if [ -n "$FSIZE" ] && [ "$FSIZE" -gt 0 ] 2>/dev/null; then
-                if [ "$FSIZE" -gt 1073741824 ]; then
-                    FSIZE_DISPLAY="$(awk "BEGIN {printf \"%.2f GB\", $FSIZE/1073741824}")"
-                elif [ "$FSIZE" -gt 1048576 ]; then
-                    FSIZE_DISPLAY="$(awk "BEGIN {printf \"%.2f MB\", $FSIZE/1048576}")"
-                else
-                    FSIZE_DISPLAY="${FSIZE} bytes"
-                fi
-            else
-                FSIZE_DISPLAY="$FSIZE"
-            fi
+            FDATE=$(format_timestamp "$FTIME")
+            FSIZE_DISPLAY=$(format_size "$FSIZE")
             
             printf "%-50s %-12s %-20s\n" "$FNAME" "$FSIZE_DISPLAY" "$FDATE"
         done
@@ -232,12 +282,8 @@ fi
 
 if [ "$DOWNLOAD_FILENAME" = "latest" ]; then
     echo "[entrypoint] Finding latest snapshot..."
-    # Find the most recent .tar file
-    MOST_RECENT_FILE=$(echo "$FILE_LIST" | \
-        grep ".tar" | \
-        awk 'NF>=4 {print $0}' | \
-        sort -k4 -n -r | \
-        head -n 1)
+    # Get the most recent file from already-filtered list
+    MOST_RECENT_FILE=$(echo "$TAR_FILES" | head -n 1)
     
     if [ -z "$MOST_RECENT_FILE" ]; then
         echo "[entrypoint] ✗ No .tar files found"
@@ -279,37 +325,14 @@ fi
 # Download with retry logic
 echo "[entrypoint] Downloading $FILENAME (hash: $FILEHASH)..."
 
-MAX_RETRIES=5
-RETRY_COUNT=0
-DOWNLOAD_SUCCESS=false
-
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if [ $RETRY_COUNT -gt 0 ]; then
-        echo "[entrypoint] Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
-    fi
-    
-    DOWNLOAD_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
-    
-    # Check if download was successful
-    if echo "$DOWNLOAD_OUTPUT" | grep -q "return:  -5"; then
-        RETRY_COUNT=$((RETRY_COUNT + 1))
-        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-            echo "[entrypoint] ⚠ Download failed (response code: -5), retrying..."
-            sleep 2
-        else
-            echo "[entrypoint] ✗ Download failed after $MAX_RETRIES attempts (response code: -5)"
-            stop_ppd
-            exit 1
-        fi
-    else
-        DOWNLOAD_SUCCESS=true
-        break
-    fi
-done
-
-if [ "$DOWNLOAD_SUCCESS" = true ]; then
+# Success check: download succeeds when output does NOT contain "return:  -5"
+if DOWNLOAD_OUTPUT=$(retry_with_backoff 5 2 '! grep -q "return:  -5"' rpc_call get "sdm://${WALLET_ADDRESS}/${FILEHASH}"); then
     echo "[entrypoint] ✓ Download completed successfully"
     echo "[entrypoint] File location: $WORK_DIR/download/$FILENAME"
+else
+    echo "[entrypoint] ✗ Download failed after 5 attempts (response code: -5)"
+    stop_ppd
+    exit 1
 fi
 
 # Cleanup and exit
