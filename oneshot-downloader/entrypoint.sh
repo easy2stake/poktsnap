@@ -10,6 +10,15 @@ RPC_PASSWORD=${RPC_PASSWORD:-}
 DOWNLOAD_FILENAME=${DOWNLOAD_FILENAME:-latest}
 DEBUG=${DEBUG:-false}
 
+# Helper function to run commands quietly unless DEBUG=true
+run_quiet() {
+    if [ "$DEBUG" = "true" ]; then
+        "$@"
+    else
+        "$@" > /dev/null 2>&1
+    fi
+}
+
 # Default mnemonic phrase (can be overridden via environment variable)
 DEFAULT_MNEMONIC="believe devote local make usual emotion glare mushroom fashion opinion flush scout travel uniform private sing hollow slam mirror trip clump exist clutch audit"
 MNEMONIC_PHRASE=${MNEMONIC_PHRASE:-$DEFAULT_MNEMONIC}
@@ -33,8 +42,8 @@ if [ ! -d "$WORK_DIR/config" ]
 then
 
   echo "[entrypoint] Init SDS resource node..."
-  printf "\n\n3\n" | $PPD_BIN config --create-p2p-key --home $WORK_DIR
-  printf "\n" | $PPD_BIN config accounts --mnemonic "$MNEMONIC_PHRASE" --home $WORK_DIR
+  printf "\n\n3\n" | run_quiet $PPD_BIN config --create-p2p-key --home $WORK_DIR
+  printf "\n" | run_quiet $PPD_BIN config accounts --mnemonic "$MNEMONIC_PHRASE" --home $WORK_DIR
 
   RPC_NAMESPACES=${RPC_NAMESPACES:-user,owner}
   echo "[entrypoint] Set rpc_namespaces to '$RPC_NAMESPACES'"
@@ -56,10 +65,8 @@ echo "[entrypoint] Starting as user: $RUN_AS_USER"
 # Start ppd in background (hide output unless DEBUG=true)
 if [ "$DEBUG" = "true" ]; then
     echo "[entrypoint] Debug mode enabled - showing ppd output"
-    gosu "$RUN_AS_USER" ppd start &
-else
-    gosu "$RUN_AS_USER" ppd start > /dev/null 2>&1 &
 fi
+run_quiet gosu "$RUN_AS_USER" ppd start &
 PPD_PID=$!
 
 # Helper function to stop ppd cleanly (respects DEBUG mode)
