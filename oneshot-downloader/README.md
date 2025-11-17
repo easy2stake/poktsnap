@@ -24,16 +24,6 @@ docker run --rm \
 
 The latest snapshot will be downloaded to `./downloads/` and the container will exit automatically.
 
-### Download Specific File
-
-```bash
-docker run --rm \
-  -p 18081:18081 \
-  -e DOWNLOAD_FILENAME=pocket-snap-data-20251104000201.tar.gz \
-  -v ./downloads:/sds/download \
-  ghcr.io/easy2stake/poktsnap:latest
-```
-
 ### List Available Files
 
 Before downloading, you can list all available snapshot files to see what's available:
@@ -45,23 +35,14 @@ docker run --rm \
   ghcr.io/easy2stake/poktsnap:latest
 ```
 
-**Output example:**
-```
-==========================================
-Available Snapshot Files
-==========================================
+### Download Specific File
 
-FILENAME                                           SIZE         TIMESTAMP           
---------                                           ----         ---------           
-pocket-snap-data-20251117000201.tar.gz             45.23 GB     2025-11-17 00:02:01
-pocket-snap-data-20251116000201.tar.gz             45.18 GB     2025-11-16 00:02:01
-pocket-snap-data-20251115000201.tar.gz             45.12 GB     2025-11-15 00:02:01
-
-Total files: 3
-
-To download a file, set DOWNLOAD_FILENAME to:
-  - 'latest' (default) for the most recent snapshot
-  - specific filename from the list above
+```bash
+docker run --rm \
+  -p 18081:18081 \
+  -e DOWNLOAD_FILENAME=pocket-snap-data-20251104000201.tar.gz \
+  -v ./downloads:/sds/download \
+  ghcr.io/easy2stake/poktsnap:latest
 ```
 
 ### Using Persistent Volumes (Faster Subsequent Runs)
