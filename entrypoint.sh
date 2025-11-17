@@ -43,9 +43,9 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   # Create cron job that runs every 5 minutes
   # Pass environment variables to the script
   # Redirect to Docker's stdout/stderr so logs appear in docker logs
-  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /dev/stdout 2>&1" > /tmp/crontab.tmp
-  
-  # Install crontab for the user
+  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /proc/1/fd/1 2>>/proc/1/fd/2" > /tmp/crontab.tmp  
+
+ # Install crontab for the user
   crontab -u $RUN_AS_USER /tmp/crontab.tmp
   rm /tmp/crontab.tmp
   
