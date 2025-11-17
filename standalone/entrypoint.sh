@@ -53,6 +53,17 @@ echo "[entrypoint] Starting as user: $RUN_AS_USER"
 gosu "$RUN_AS_USER" ppd start &
 PPD_PID=$!
 
+# Setup signal handling for graceful shutdown
+shutdown() {
+    echo "[entrypoint] Received shutdown signal, stopping ppd..."
+    kill -TERM $PPD_PID 2>/dev/null
+    wait $PPD_PID 2>/dev/null
+    echo "[entrypoint] Shutdown complete"
+    exit 1
+}
+
+trap shutdown SIGTERM SIGINT
+
 # Wait for node to be ready (check if RPC port is listening)
 echo "[entrypoint] Waiting for node to be ready..."
 MAX_WAIT=60

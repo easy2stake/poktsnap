@@ -42,8 +42,10 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   
   # Create cron job that runs every 5 minutes
   # Pass environment variables to the script
+  # Set PATH to include /usr/bin where rpcclient is located
   # Redirect to Docker's stdout/stderr so logs appear in docker logs
-  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /proc/1/fd/1 2>>/proc/1/fd/2" > /tmp/crontab.tmp  
+  echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /tmp/crontab.tmp
+  echo "*/5 * * * * RPC_PASSWORD='$RPC_PASSWORD' RPC_URL='$RPC_URL' /usr/local/bin/monitor-and-upload.sh >> /proc/1/fd/1 2>>/proc/1/fd/2" >> /tmp/crontab.tmp  
 
  # Install crontab for the user
   crontab -u $RUN_AS_USER /tmp/crontab.tmp
@@ -51,8 +53,11 @@ if [ -f /usr/local/bin/monitor-and-upload.sh ]; then
   
   # Start cron daemon
   cron
+  CRON_ENABLED=true
   
   echo "[entrypoint] Auto-upload cron job configured (runs every 5 minutes)"
+else
+  CRON_ENABLED=false
 fi
 
 echo "[entrypoint] Starting as user: $RUN_AS_USER"
@@ -126,6 +131,25 @@ if [ "$RP_SUCCESS" = false ]; then
     kill $PPD_PID 2>/dev/null
     exit 1
 fi
+
+# Setup signal handling for graceful shutdown
+shutdown() {
+    echo "[entrypoint] Received shutdown signal, stopping services..."
+    
+    # Stop ppd
+    kill -TERM $PPD_PID 2>/dev/null
+    wait $PPD_PID 2>/dev/null
+    
+    # Stop cron if it was enabled
+    if [ "$CRON_ENABLED" = "true" ]; then
+        pkill -TERM cron 2>/dev/null
+    fi
+    
+    echo "[entrypoint] Shutdown complete"
+    exit 0
+}
+
+trap shutdown SIGTERM SIGINT
 
 # Keep container running by waiting on ppd process
 wait $PPD_PID

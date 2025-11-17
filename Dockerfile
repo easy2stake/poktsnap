@@ -41,9 +41,9 @@ FROM ubuntu:24.04
 ENV WORK_DIR=/sds
 ENV RUN_AS_USER=sds
 
-# Install ca-certificates, cron, and netcat
+# Install ca-certificates, cron, netcat, and procps (for pkill)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gosu ca-certificates cron netcat-openbsd \
+    && apt-get install -y --no-install-recommends gosu ca-certificates cron netcat-openbsd procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && gosu nobody true
