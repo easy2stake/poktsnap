@@ -4,7 +4,7 @@
 # This script runs via cron to automatically upload new snapshots to Stratos
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "[monitor-and-upload] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 log "Starting snapshot upload monitor..."
