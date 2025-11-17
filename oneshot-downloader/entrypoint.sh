@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 RUN_AS_USER=${RUN_AS_USER:-sds}
 WORK_DIR=${WORK_DIR:-/sds}
@@ -62,7 +62,7 @@ shutdown() {
     exit 1
 }
 
-trap shutdown SIGTERM SIGINT
+trap shutdown TERM INT
 
 # Wait for node to be ready (check if RPC port is listening)
 echo "[entrypoint] Waiting for node to be ready..."

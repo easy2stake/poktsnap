@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 RUN_AS_USER=${RUN_AS_USER:-sds}
 WORK_DIR=${WORK_DIR:-/sds}
@@ -163,7 +163,7 @@ shutdown() {
     exit 0
 }
 
-trap shutdown SIGTERM SIGINT
+trap shutdown TERM INT
 
 # Keep container running by waiting on ppd process
 wait $PPD_PID
