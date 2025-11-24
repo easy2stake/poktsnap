@@ -26,9 +26,8 @@ fi
 echo "Uploading file: $FILEPATH"
 echo ""
 
-# Upload the file
-UPLOAD_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$FILEPATH" 2>&1)
-echo "$UPLOAD_OUTPUT"
+# Upload the file (stream output to terminal while capturing for success check)
+UPLOAD_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$FILEPATH" 2>&1 | tee /dev/tty)
 
 # Check if upload was successful
 if echo "$UPLOAD_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
