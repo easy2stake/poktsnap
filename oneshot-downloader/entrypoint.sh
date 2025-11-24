@@ -24,40 +24,6 @@ rpc_call() {
     gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" "$@" 2>&1
 }
 
-# Generic retry logic with exponential backoff
-# Usage: retry_with_backoff MAX_RETRIES SLEEP_SECONDS SUCCESS_CHECK COMMAND [ARGS...]
-# Returns: 0 on success, 1 on failure (outputs result to stdout/stderr)
-retry_with_backoff() {
-    local max_retries="$1"
-    local sleep_seconds="$2"
-    local success_check="$3"
-    shift 3
-    
-    local retry_count=0
-    local output
-    
-    while [ $retry_count -lt $max_retries ]; do
-        if [ $retry_count -gt 0 ]; then
-            echo "[entrypoint] Retry attempt $retry_count of $max_retries..."
-        fi
-        
-        output=$("$@")
-        
-        if eval "$success_check \"\$output\""; then
-            echo "$output"
-            return 0
-        fi
-        
-        retry_count=$((retry_count + 1))
-        if [ $retry_count -lt $max_retries ]; then
-            sleep "$sleep_seconds"
-        fi
-    done
-    
-    echo "$output" >&2
-    return 1
-}
-
 # Format file size to human-readable format (bytes -> MB/GB)
 format_size() {
     local size="$1"
@@ -334,7 +300,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         echo "[entrypoint] Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
     fi
     
-    DOWNLOAD_OUTPUT=$(gosu "$RUN_AS_USER" $RPCCLIENT_BIN -p "$RPC_PASSWORD" -u "$RPC_URL" get "sdm://${WALLET_ADDRESS}/${FILEHASH}" 2>&1)
+    DOWNLOAD_OUTPUT=$(rpc_call get "sdm://${WALLET_ADDRESS}/${FILEHASH}")
     
     # Check if download was successful
     if echo "$DOWNLOAD_OUTPUT" | grep -q "return:  -5"; then
@@ -356,7 +322,6 @@ done
 if [ "$DOWNLOAD_SUCCESS" = true ]; then
     echo "[entrypoint] ✓ Download completed successfully"
     echo "[entrypoint] File location: $WORK_DIR/download/$FILENAME"
-
 fi
 
 # Cleanup and exit

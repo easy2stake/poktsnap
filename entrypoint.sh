@@ -67,7 +67,7 @@ EOF_CRONTAB
   cat >> /tmp/crontab.tmp <<'EOF_CRONTAB'
 
 # Auto-upload monitoring - runs every 5 minutes
-*/5 * * * * /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1
+*/10 * * * * /usr/local/bin/monitor-and-upload.sh >> /var/log/cron.log 2>&1
 # Retention cleanup - runs every hour
 0 * * * * /usr/local/bin/cleanup-old-snapshots.sh >> /var/log/cron.log 2>&1
 EOF_CRONTAB
