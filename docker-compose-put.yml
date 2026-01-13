@@ -15,7 +15,7 @@ services:
       - "${NETWORK_PORT:-18081}:${NETWORK_PORT:-18081}"
     volumes:
       - ./sds-data:/sds
-      - ${ARCHIVE_DIR}:/archive:ro
+      - ${ARCHIVE_DIR}:/archive:rw
       - ./scripts/monitor-and-upload.sh:/usr/local/bin/monitor-and-upload.sh:ro
       - ./scripts/cleanup-old-snapshots.sh:/usr/local/bin/cleanup-old-snapshots.sh:ro
       - ./scripts/rpc-utils.sh:/usr/local/bin/rpc-utils.sh:ro
