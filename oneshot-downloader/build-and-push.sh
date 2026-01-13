@@ -9,9 +9,37 @@ NC='\033[0m' # No Color
 
 # Configuration
 IMAGE_NAME="ghcr.io/easy2stake/poktsnap"
+USERNAME="easy2stake"
+
+# Show usage if --help is passed
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo -e "${GREEN}=== PokTSnap Build and Push ===${NC}"
+    echo ""
+    echo "Usage: $0 [VERSION]"
+    echo ""
+    echo "Arguments:"
+    echo "  VERSION         Version tag for the Docker image (default: v1.0.0)"
+    echo ""
+    echo "Environment Variables:"
+    echo "  SDS_VERSION    SDS repository version/branch to build (default: main)"
+    echo "  GITHUB_TOKEN   GitHub Personal Access Token (will prompt if not set)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Build and push with default version v1.0.0"
+    echo "  $0 v1.2.3            # Build and push with version v1.2.3"
+    echo "  SDS_VERSION=v1.2.3 $0 v1.0.0  # Build with specific SDS version"
+    echo ""
+    echo "The script will:"
+    echo "  1. Build Docker image with specified SDS_VERSION"
+    echo "  2. Tag image as both 'latest' and the specified VERSION"
+    echo "  3. Login to GitHub Container Registry (ghcr.io)"
+    echo "  4. Push both tags to the registry"
+    echo ""
+    exit 0
+fi
+
 VERSION="${1:-v1.0.0}"  # Use first argument or default to v1.0.0
 SDS_VERSION="${SDS_VERSION:-main}"  # Use environment variable or default to main
-USERNAME="easy2stake"
 
 echo -e "${GREEN}=== PokTSnap Build and Push ===${NC}"
 echo ""
