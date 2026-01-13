@@ -279,26 +279,78 @@ process_large_file() {
     local TMP_DIR="${FILEDIR}/tmp"
     mkdir -p "$TMP_DIR"
     
-    # Check if chunks already exist
+    # Check if manifest already exists (from previous split)
+    local MANIFEST_FILE="${TMP_DIR}/${FILENAME}.manifest"
     local CHUNK_PREFIX="${TMP_DIR}/${FILENAME}.part"
-    local CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
     
-    if [ -z "$CHUNK_FILES" ]; then
-        # No chunks found, split the file
-        if ! split_file "$FILEPATH" "$CHUNK_PREFIX"; then
-            return 1
+    if [ -f "$MANIFEST_FILE" ]; then
+        # Manifest exists - read it to get expected chunk list
+        log "$SCRIPT_NAME" "  ↳ Found existing manifest, reading expected chunk list..."
+        
+        # Extract chunk filenames from manifest
+        local EXPECTED_CHUNKS=$(grep -o '"filename": "[^"]*"' "$MANIFEST_FILE" | sed 's/"filename": "\([^"]*\)"/\1/')
+        local EXPECTED_CHUNK_COUNT=$(grep -o '"chunk_count": [0-9]*' "$MANIFEST_FILE" | grep -o '[0-9]*')
+        
+        if [ -z "$EXPECTED_CHUNK_COUNT" ] || [ -z "$EXPECTED_CHUNKS" ]; then
+            log "$SCRIPT_NAME" "  ↳ ERROR: Could not read chunk information from existing manifest"
+            log "$SCRIPT_NAME" "  ↳ Recreating manifest..."
+            rm -f "$MANIFEST_FILE"
+        else
+            # Verify all expected chunks exist on disk
+            local MISSING_CHUNKS=""
+            while IFS= read -r CHUNK_NAME; do
+                [ -z "$CHUNK_NAME" ] && continue
+                local CHUNK_PATH="${TMP_DIR}/${CHUNK_NAME}"
+                if [ ! -f "$CHUNK_PATH" ]; then
+                    MISSING_CHUNKS="${MISSING_CHUNKS}${CHUNK_NAME} "
+                fi
+            done <<< "$EXPECTED_CHUNKS"
+            
+            if [ -n "$MISSING_CHUNKS" ]; then
+                log "$SCRIPT_NAME" "  ↳ ERROR: Missing chunks from manifest: $MISSING_CHUNKS"
+                log "$SCRIPT_NAME" "  ↳ Cannot proceed - chunks may have been deleted"
+                return 1
+            fi
+            
+            # Build CHUNK_FILES list from manifest order
+            CHUNK_FILES=""
+            while IFS= read -r CHUNK_NAME; do
+                [ -z "$CHUNK_NAME" ] && continue
+                CHUNK_FILES="${CHUNK_FILES}${TMP_DIR}/${CHUNK_NAME}\n"
+            done <<< "$EXPECTED_CHUNKS"
+            CHUNK_FILES=$(echo -e "$CHUNK_FILES" | grep -v '^$')
+            CHUNK_COUNT="$EXPECTED_CHUNK_COUNT"
+            
+            log "$SCRIPT_NAME" "  ↳ Using existing manifest with $CHUNK_COUNT chunk(s)"
+            # Don't recreate manifest - use existing one
         fi
-        # Re-find chunk files after splitting
-        CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
-    else
-        log "$SCRIPT_NAME" "  ↳ Using existing chunks (file was already split)"
     fi
     
-    local CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
+    # If no manifest exists (or it was invalid), create chunks and manifest
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+        
+        if [ -z "$CHUNK_FILES" ]; then
+            # No chunks found, split the file
+            if ! split_file "$FILEPATH" "$CHUNK_PREFIX"; then
+                return 1
+            fi
+            # Re-find chunk files after splitting
+            CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+        else
+            log "$SCRIPT_NAME" "  ↳ Using existing chunks (file was already split)"
+        fi
+        
+        CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
+        
+        # Create manifest immediately after split/discovery (proof of complete split)
+        create_initial_manifest "$MANIFEST_FILE" "$FILENAME" "$FILE_SIZE" "$CHUNK_COUNT" "$CHUNK_FILES" false
+    fi
     
-    # Create manifest immediately after split/discovery (proof of complete split)
-    local MANIFEST_FILE="${TMP_DIR}/${FILENAME}.manifest"
-    create_initial_manifest "$MANIFEST_FILE" "$FILENAME" "$FILE_SIZE" "$CHUNK_COUNT" "$CHUNK_FILES" false
+    # Ensure CHUNK_COUNT is set if we used existing manifest (should already be set, but double-check)
+    if [ -z "$CHUNK_COUNT" ]; then
+        CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
+    fi
     
     log "$SCRIPT_NAME" "  ↳ Found $CHUNK_COUNT chunk(s), checking upload status..."
     
