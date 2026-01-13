@@ -39,9 +39,10 @@ This document provides context and guidelines for AI agents working on this proj
 ### File Splitting Logic
 
 **Threshold**: Files >= 10GB are automatically split into chunks
-- Configurable via `MAX_FILE_SIZE_GB` variable
+- Configurable via `MAX_FILE_SIZE_GB` environment variable (default: 10)
 - User changed from 50GB to 10GB during development
-- Location: `scripts/monitor-and-upload.sh` line 21
+- Can be disabled entirely via `PROCESS_LARGE_FILES=false` in `.env`
+- Location: `scripts/monitor-and-upload.sh` configuration section
 
 **Chunk Storage**:
 - Original file: `/archive/snapshot.tar` (always kept)
@@ -58,6 +59,13 @@ This document provides context and guidelines for AI agents working on this proj
 - Calculates `original_size` from sum of all chunk sizes
 - **Separate cleanup process** handles removing old chunks from `/tmp`
 - This allows crash recovery even if original file was deleted
+- Can be disabled via `PROCESS_ORPHANED_CHUNKS=false` in `.env`
+
+**Upload Configuration** (via `.env` file):
+- `MAX_FILE_SIZE_GB` - Maximum file size before chunking (default: 10)
+- `PROCESS_LARGE_FILES` - Enable/disable large file processing (default: true)
+- `PROCESS_ORPHANED_CHUNKS` - Enable/disable orphaned chunk recovery (default: true)
+- `ARCHIVE_DIR` - Archive directory path (default: /archive)
 
 **Upload Behavior**:
 1. Check if file >= 10GB

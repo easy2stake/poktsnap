@@ -11,11 +11,19 @@ source "$SCRIPT_DIR/rpc-utils.sh"
 
 SCRIPT_NAME="monitor-and-upload"
 
-# Configuration
-ARCHIVE_DIR="/archive"
-MAX_FILE_SIZE_GB=10
+# Configuration - read from environment variables with defaults
+ARCHIVE_DIR="${ARCHIVE_DIR:-/archive}"
+MAX_FILE_SIZE_GB="${MAX_FILE_SIZE_GB:-10}"
 MAX_FILE_SIZE_BYTES=$((MAX_FILE_SIZE_GB * 1024 * 1024 * 1024))
 LOCKFILE="/tmp/monitor-and-upload.lock"
+
+# Feature flags - read from environment variables with defaults
+# Convert to lowercase for case-insensitive comparison
+PROCESS_LARGE_FILES="${PROCESS_LARGE_FILES:-true}"
+PROCESS_LARGE_FILES=$(echo "$PROCESS_LARGE_FILES" | tr '[:upper:]' '[:lower:]')
+
+PROCESS_ORPHANED_CHUNKS="${PROCESS_ORPHANED_CHUNKS:-true}"
+PROCESS_ORPHANED_CHUNKS=$(echo "$PROCESS_ORPHANED_CHUNKS" | tr '[:upper:]' '[:lower:]')
 
 # Global variables set during execution
 UPLOADED_FILES=""
@@ -356,7 +364,11 @@ process_archive_files() {
         # Check file size - split if >= MAX_FILE_SIZE_GB, otherwise upload normally
         local FILE_SIZE=$(stat -c%s "$FILEPATH" 2>/dev/null || echo "0")
         if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
-            process_large_file "$FILEPATH" "$FILENAME" "$FILE_SIZE"
+            if [ "$PROCESS_LARGE_FILES" = "true" ]; then
+                process_large_file "$FILEPATH" "$FILENAME" "$FILE_SIZE"
+            else
+                log "$SCRIPT_NAME" "  ↳ SKIP: Large file processing is disabled (PROCESS_LARGE_FILES=false)"
+            fi
         else
             process_small_file "$FILEPATH" "$FILENAME"
         fi
@@ -504,6 +516,13 @@ main() {
     
     log "$SCRIPT_NAME" "Starting snapshot upload monitor..."
     
+    # Log configuration
+    log "$SCRIPT_NAME" "Configuration:"
+    log "$SCRIPT_NAME" "  ARCHIVE_DIR: $ARCHIVE_DIR"
+    log "$SCRIPT_NAME" "  MAX_FILE_SIZE_GB: $MAX_FILE_SIZE_GB"
+    log "$SCRIPT_NAME" "  PROCESS_LARGE_FILES: $PROCESS_LARGE_FILES"
+    log "$SCRIPT_NAME" "  PROCESS_ORPHANED_CHUNKS: $PROCESS_ORPHANED_CHUNKS"
+    
     # Check if required environment variables are set
     validate_rpc_env "$SCRIPT_NAME"
     
@@ -519,8 +538,12 @@ main() {
     # Process archive files
     process_archive_files
     
-    # Process orphaned chunks
-    process_orphaned_chunks
+    # Process orphaned chunks (if enabled)
+    if [ "$PROCESS_ORPHANED_CHUNKS" = "true" ]; then
+        process_orphaned_chunks
+    else
+        log "$SCRIPT_NAME" "Orphaned chunk processing is disabled (PROCESS_ORPHANED_CHUNKS=false)"
+    fi
     
     log "$SCRIPT_NAME" "Snapshot upload monitor completed"
 }
