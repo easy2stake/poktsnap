@@ -18,6 +18,8 @@ validate_rpc_env "$SCRIPT_NAME"
 
 # Configuration
 ARCHIVE_DIR="/archive"
+MAX_FILE_SIZE_GB=50
+MAX_FILE_SIZE_BYTES=$((MAX_FILE_SIZE_GB * 1024 * 1024 * 1024))  # 50GB in bytes
 
 if [ ! -d "$ARCHIVE_DIR" ]; then
     log "$SCRIPT_NAME" "ERROR: Archive directory $ARCHIVE_DIR does not exist"
@@ -39,6 +41,14 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
     # Check if file is already uploaded
     if echo "$UPLOADED_FILES" | grep -q "^$FILENAME "; then
         log "$SCRIPT_NAME" "  ↳ SKIP: $FILENAME already uploaded to Stratos"
+        continue
+    fi
+    
+    # Check file size (skip if >= 50GB)
+    FILE_SIZE=$(stat -c%s "$FILEPATH" 2>/dev/null || echo "0")
+    if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
+        FILE_SIZE_GB=$(awk "BEGIN {printf \"%.2f\", $FILE_SIZE/1073741824}")
+        log "$SCRIPT_NAME" "  ↳ SKIP: $FILENAME is too large (${FILE_SIZE_GB}GB >= ${MAX_FILE_SIZE_GB}GB)"
         continue
     fi
     
