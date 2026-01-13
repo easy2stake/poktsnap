@@ -50,8 +50,13 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
         FILE_SIZE_GB=$(awk "BEGIN {printf \"%.2f\", $FILE_SIZE/1073741824}")
         log "$SCRIPT_NAME" "  ↳ File is large (${FILE_SIZE_GB}GB >= ${MAX_FILE_SIZE_GB}GB), splitting into chunks..."
         
-        # Split the file into chunks
-        CHUNK_PREFIX="${FILEPATH}.part"
+        # Create tmp directory relative to file's directory
+        FILEDIR=$(dirname "$FILEPATH")
+        TMP_DIR="${FILEDIR}/tmp"
+        mkdir -p "$TMP_DIR"
+        
+        # Split the file into chunks in tmp directory
+        CHUNK_PREFIX="${TMP_DIR}/${FILENAME}.part"
         if ! split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX"; then
             log "$SCRIPT_NAME" "  ↳ ERROR: Failed to split file $FILENAME"
             continue
@@ -95,7 +100,7 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
         
         # Create and upload manifest if all chunks uploaded successfully
         if [ "$UPLOAD_SUCCESS" = true ]; then
-            MANIFEST_FILE="${FILEPATH}.manifest"
+            MANIFEST_FILE="${TMP_DIR}/${FILENAME}.manifest"
             cat > "$MANIFEST_FILE" <<EOF
 {
   "original_filename": "$FILENAME",
@@ -114,7 +119,7 @@ EOF
             if echo "$MANIFEST_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
                 MANIFEST_HASH=$(echo "$MANIFEST_OUTPUT" | grep "File " | awk '{print $3}')
                 log "$SCRIPT_NAME" "  ↳ SUCCESS: All $CHUNK_COUNT chunk(s) and manifest uploaded (manifest hash: $MANIFEST_HASH)"
-                # Cleanup local chunks and manifest
+                # Cleanup local chunks and manifest (keep tmp directory)
                 rm -f "${CHUNK_PREFIX}"* "$MANIFEST_FILE"
             else
                 log "$SCRIPT_NAME" "  ↳ ERROR: Failed to upload manifest file"

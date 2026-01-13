@@ -12,6 +12,7 @@ NC='\033[0m' # No Color
 IMAGE_NAME="poktsnap"
 TAG="local"
 LIST_MODE=false
+SDS_VERSION="${SDS_VERSION:-main}"  # Use environment variable or default to main
 
 # Check for --list flag
 if [ "$1" = "--list" ] || [ "$1" = "-l" ]; then
@@ -37,12 +38,16 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "  DOWNLOAD_DIR    Directory for downloaded files (default: ./downloads)"
     echo "  PERSISTENT      Use persistent volume for /sds (true/false, default: false)"
     echo ""
+    echo "Environment Variables:"
+    echo "  SDS_VERSION     SDS repository version/branch to build (default: main)"
+    echo ""
     echo "Examples:"
     echo "  $0                          # Basic usage with ./downloads"
     echo "  $0 --list                   # List available snapshot files"
     echo "  $0 /path/to/downloads       # Custom download directory"
     echo "  $0 ./downloads true         # With persistent SDS volume (faster subsequent runs)"
     echo "  $0 --list ./downloads true  # List files with persistent volume"
+    echo "  SDS_VERSION=v1.2.3 $0      # Build with specific SDS version"
     echo ""
     echo "Persistent mode benefits:"
     echo "  - Faster subsequent runs (reuses config/keys)"
@@ -68,7 +73,8 @@ if [ ! -d "$DOWNLOAD_DIR" ]; then
 fi
 
 echo -e "${GREEN}Step 1/2: Building Docker image...${NC}"
-docker build -t ${IMAGE_NAME}:${TAG} .
+echo -e "SDS_VERSION: ${SDS_VERSION}"
+docker build --build-arg SDS_VERSION=${SDS_VERSION} -t ${IMAGE_NAME}:${TAG} .
 
 echo ""
 echo -e "${GREEN}Step 2/2: Running container...${NC}"

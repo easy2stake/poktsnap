@@ -10,6 +10,7 @@ NC='\033[0m' # No Color
 # Configuration
 IMAGE_NAME="ghcr.io/easy2stake/poktsnap"
 VERSION="${1:-v1.0.0}"  # Use first argument or default to v1.0.0
+SDS_VERSION="${SDS_VERSION:-main}"  # Use environment variable or default to main
 USERNAME="easy2stake"
 
 echo -e "${GREEN}=== PokTSnap Build and Push ===${NC}"
@@ -34,7 +35,8 @@ if [ -z "$GITHUB_TOKEN" ]; then
 fi
 
 echo -e "${GREEN}Step 1/4: Building Docker image...${NC}"
-docker build -t ${IMAGE_NAME}:latest .
+echo -e "SDS_VERSION: ${SDS_VERSION}"
+docker build --build-arg SDS_VERSION=${SDS_VERSION} -t ${IMAGE_NAME}:latest .
 
 echo ""
 echo -e "${GREEN}Step 2/4: Tagging image with version ${VERSION}...${NC}"

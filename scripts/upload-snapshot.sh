@@ -34,8 +34,13 @@ if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
     echo "File is large (${FILE_SIZE_GB}GB >= ${MAX_FILE_SIZE_GB}GB), splitting into chunks..."
     echo ""
     
-    # Split the file into chunks inside the container
-    CHUNK_PREFIX="${FILEPATH}.part"
+    # Create tmp directory relative to file's directory inside the container
+    FILEDIR=$(dirname "$FILEPATH")
+    TMP_DIR="${FILEDIR}/tmp"
+    docker exec -u sds sds-node mkdir -p "$TMP_DIR" 2>&1
+    
+    # Split the file into chunks in tmp directory inside the container
+    CHUNK_PREFIX="${TMP_DIR}/${FILENAME}.part"
     if ! docker exec -u sds sds-node split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX" 2>&1; then
         echo "Error: Failed to split file $FILENAME"
         exit 1
@@ -80,7 +85,7 @@ if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
     
     # Create and upload manifest if all chunks uploaded successfully
     if [ "$UPLOAD_SUCCESS" = true ]; then
-        MANIFEST_FILE="${FILEPATH}.manifest"
+        MANIFEST_FILE="${TMP_DIR}/${FILENAME}.manifest"
         docker exec -u sds sds-node bash -c "cat > \"$MANIFEST_FILE\" <<'EOF'
 {
   \"original_filename\": \"$FILENAME\",
@@ -101,7 +106,7 @@ EOF"
             echo ""
             echo "✓ All $CHUNK_COUNT chunk(s) and manifest uploaded successfully"
             echo "Manifest hash: $MANIFEST_HASH"
-            # Cleanup local chunks and manifest
+            # Cleanup local chunks and manifest (keep tmp directory)
             docker exec -u sds sds-node rm -f "${CHUNK_PREFIX}"* "$MANIFEST_FILE" 2>/dev/null
         else
             echo ""
