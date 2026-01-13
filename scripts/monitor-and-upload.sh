@@ -12,7 +12,7 @@ source "$SCRIPT_DIR/rpc-utils.sh"
 SCRIPT_NAME="monitor-and-upload"
 
 # Configuration - read from environment variables with defaults
-ARCHIVE_DIR="/archive"
+ARCHIVE_DIR="${CONTAINER_ARCHIVE_DIR:-/archive}"
 MAX_FILE_SIZE_GB="${MAX_FILE_SIZE_GB:-10}"
 MAX_FILE_SIZE_BYTES=$((MAX_FILE_SIZE_GB * 1024 * 1024 * 1024))
 LOCKFILE="/tmp/monitor-and-upload.lock"
