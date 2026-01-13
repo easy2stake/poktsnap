@@ -11,6 +11,27 @@ source "$SCRIPT_DIR/rpc-utils.sh"
 
 SCRIPT_NAME="monitor-and-upload"
 
+# Lock mechanism to prevent concurrent executions
+LOCKFILE="/tmp/monitor-and-upload.lock"
+
+# Check if another instance is running
+if [ -f "$LOCKFILE" ]; then
+    # Check if the PID in lockfile is still running
+    if kill -0 $(cat "$LOCKFILE" 2>/dev/null) 2>/dev/null; then
+        log "$SCRIPT_NAME" "Another instance is already running (PID: $(cat "$LOCKFILE")). Exiting."
+        exit 0
+    else
+        log "$SCRIPT_NAME" "Stale lockfile found, removing..."
+        rm -f "$LOCKFILE"
+    fi
+fi
+
+# Create lockfile with current PID
+echo $$ > "$LOCKFILE"
+
+# Ensure lockfile is removed on exit
+trap "rm -f $LOCKFILE" EXIT INT TERM
+
 log "$SCRIPT_NAME" "Starting snapshot upload monitor..."
 
 # Check if required environment variables are set

@@ -107,6 +107,27 @@ This document provides context and guidelines for AI agents working on this proj
 
 ## Important Behaviors
 
+### Concurrent Execution Prevention
+
+**Lock Mechanism** (monitor-and-upload.sh):
+- Lockfile: `/tmp/monitor-and-upload.lock`
+- Prevents concurrent cron executions from racing
+- Detects and removes stale locks if process died
+- Auto-cleanup via `trap` on exit
+
+```bash
+# If cron triggers while upload in progress:
+# - New instance checks lockfile
+# - Finds running PID → exits gracefully
+# - Logs: "Another instance is already running"
+# - No duplicate uploads or race conditions
+```
+
+**Why This Matters**:
+- Large files (>10GB) can take 10+ minutes to upload chunks
+- Cron runs every 10 minutes → overlap is likely
+- Without lock: file corruption, duplicate uploads, manifest conflicts
+
 ### File Existence Checks
 
 **Always check inside container**:
@@ -122,6 +143,12 @@ docker exec -u sds sds-node test -f "$FILEPATH"
 
 ```
 START (cron every 10 minutes)
+  ↓
+Check lockfile (/tmp/monitor-and-upload.lock)
+  ├─ Lockfile exists & process running? → Exit gracefully
+  └─ No lock or stale lock? → Continue
+  ↓
+Create lockfile with current PID
   ↓
 Scan /archive for files (*.tar, *.tar.gz, *.tar.zstd)
   ↓ (age > 15 minutes)
