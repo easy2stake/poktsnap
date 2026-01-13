@@ -18,7 +18,7 @@ validate_rpc_env "$SCRIPT_NAME"
 
 # Configuration
 ARCHIVE_DIR="/archive"
-MAX_FILE_SIZE_GB=50
+MAX_FILE_SIZE_GB=10
 MAX_FILE_SIZE_BYTES=$((MAX_FILE_SIZE_GB * 1024 * 1024 * 1024))  # 50GB in bytes
 
 if [ ! -d "$ARCHIVE_DIR" ]; then

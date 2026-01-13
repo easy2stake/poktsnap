@@ -22,14 +22,16 @@ show_usage() {
     echo "Usage: $0 <command> [args]"
     echo ""
     echo "Commands:"
-    echo "  list                          List all files in SDS node"
+    echo "  list [-a|--all]               List files in SDS node"
+    echo "                                  -a, --all: Show all files (default: .tar only)"
     echo "  download <filename|latest>    Download a file (by name or latest)"
     echo "  upload <file-path>            Upload a file to SDS node"
     echo "  delete <filehash>             Delete a file from SDS node by hash"
     echo "  shell                         Open bash shell inside container as sds user"
     echo ""
     echo "Examples:"
-    echo "  $0 list"
+    echo "  $0 list                       # List .tar files only"
+    echo "  $0 list --all                 # List all files"
     echo "  $0 download latest"
     echo "  $0 download myfile.tar"
     echo "  $0 upload /path/to/snapshot.tar"
@@ -72,20 +74,37 @@ format_timestamp() {
 cmd_list() {
     load_env
     
+    local SHOW_ALL=false
+    
+    # Check for --all or -a flag
+    if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+        SHOW_ALL=true
+    fi
+    
     echo "Fetching file list from SDS node..."
     echo ""
     
-    # Get file list and filter for .tar files
+    # Get file list
     FILE_LIST=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
-    TAR_FILES=$(echo "$FILE_LIST" | grep -v "^\[DEBUG\]" | grep "\.tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
     
-    if [ -z "$TAR_FILES" ]; then
-        echo "No snapshot files found."
+    # Filter based on flag
+    if [ "$SHOW_ALL" = true ]; then
+        # Show all files (exclude only debug lines)
+        FILES=$(echo "$FILE_LIST" | grep -v "^\[DEBUG\]" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
+        FILE_TYPE="All Files"
+    else
+        # Show only .tar files (default)
+        FILES=$(echo "$FILE_LIST" | grep -v "^\[DEBUG\]" | grep "\.tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
+        FILE_TYPE="Snapshot Files (.tar)"
+    fi
+    
+    if [ -z "$FILES" ]; then
+        echo "No files found."
         return
     fi
     
     echo "=========================================="
-    echo "Available Snapshot Files"
+    echo "$FILE_TYPE"
     echo "=========================================="
     echo ""
     
@@ -94,7 +113,7 @@ cmd_list() {
     printf "%-50s %-45s %-12s %-20s\n" "--------" "----" "----" "---------"
     
     # Print each file
-    echo "$TAR_FILES" | while IFS= read -r line; do
+    echo "$FILES" | while IFS= read -r line; do
         FNAME=$(echo "$line" | awk '{print $1}')
         FHASH=$(echo "$line" | awk '{print $2}')
         FSIZE=$(echo "$line" | awk '{print $3}')
@@ -107,7 +126,7 @@ cmd_list() {
     done
     
     echo ""
-    echo "Total files: $(echo "$TAR_FILES" | wc -l | tr -d ' ')"
+    echo "Total files: $(echo "$FILES" | wc -l | tr -d ' ')"
     echo ""
 }
 
@@ -188,7 +207,7 @@ shift
 # Route to appropriate command
 case "$COMMAND" in
     list)
-        cmd_list
+        cmd_list "$@"
         ;;
     download)
         cmd_download "$@"
