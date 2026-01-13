@@ -55,44 +55,65 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
         TMP_DIR="${FILEDIR}/tmp"
         mkdir -p "$TMP_DIR"
         
-        # Split the file into chunks in tmp directory
+        # Check if chunks already exist
         CHUNK_PREFIX="${TMP_DIR}/${FILENAME}.part"
-        if ! split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX"; then
-            log "$SCRIPT_NAME" "  ↳ ERROR: Failed to split file $FILENAME"
-            continue
-        fi
-        
-        # Find all chunk files
         CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+        
+        if [ -z "$CHUNK_FILES" ]; then
+            # No chunks found, split the file
+            log "$SCRIPT_NAME" "  ↳ Splitting file into chunks..."
+            if ! split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX"; then
+                log "$SCRIPT_NAME" "  ↳ ERROR: Failed to split file $FILENAME"
+                continue
+            fi
+            # Re-find chunk files after splitting
+            CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+        else
+            log "$SCRIPT_NAME" "  ↳ Using existing chunks (file was already split)"
+        fi
         CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
         MANIFEST_CONTENT=""
         UPLOAD_SUCCESS=true
         
-        log "$SCRIPT_NAME" "  ↳ Created $CHUNK_COUNT chunk(s), uploading..."
+        log "$SCRIPT_NAME" "  ↳ Found $CHUNK_COUNT chunk(s), checking upload status..."
         
-        # Upload each chunk
+        # Upload each chunk (skip if already uploaded)
         CHUNK_NUM=1
         while IFS= read -r CHUNK_FILE; do
             [ -z "$CHUNK_FILE" ] && continue
             CHUNK_NAME=$(basename "$CHUNK_FILE")
-            log "$SCRIPT_NAME" "    ↳ Uploading chunk $CHUNK_NUM/$CHUNK_COUNT: $CHUNK_NAME"
             
-            CHUNK_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$CHUNK_FILE" 2>&1)
-            
-            if echo "$CHUNK_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
-                CHUNK_HASH=$(echo "$CHUNK_OUTPUT" | grep "File " | awk '{print $3}')
+            # Check if chunk is already uploaded
+            if echo "$UPLOADED_FILES" | grep -q "^${CHUNK_NAME} "; then
+                log "$SCRIPT_NAME" "    ↳ SKIP: $CHUNK_NAME already uploaded"
+                # Get hash from uploaded files list for manifest
+                CHUNK_HASH=$(echo "$UPLOADED_FILES" | grep "^${CHUNK_NAME} " | awk '{print $2}')
                 if [ -n "$CHUNK_HASH" ]; then
                     if [ -n "$MANIFEST_CONTENT" ]; then
                         MANIFEST_CONTENT="${MANIFEST_CONTENT},\n"
                     fi
                     MANIFEST_CONTENT="${MANIFEST_CONTENT}    {\"filename\": \"${CHUNK_NAME}\", \"hash\": \"${CHUNK_HASH}\"}"
-                    log "$SCRIPT_NAME" "    ↳ SUCCESS: $CHUNK_NAME uploaded (hash: $CHUNK_HASH)"
                 fi
             else
-                log "$SCRIPT_NAME" "    ↳ ERROR: Failed to upload chunk $CHUNK_NAME"
-                log "$SCRIPT_NAME" "    ↳ Output: $CHUNK_OUTPUT"
-                UPLOAD_SUCCESS=false
-                break
+                log "$SCRIPT_NAME" "    ↳ Uploading chunk $CHUNK_NUM/$CHUNK_COUNT: $CHUNK_NAME"
+                
+                CHUNK_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$CHUNK_FILE" 2>&1)
+                
+                if echo "$CHUNK_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+                    CHUNK_HASH=$(echo "$CHUNK_OUTPUT" | grep "File " | awk '{print $3}')
+                    if [ -n "$CHUNK_HASH" ]; then
+                        if [ -n "$MANIFEST_CONTENT" ]; then
+                            MANIFEST_CONTENT="${MANIFEST_CONTENT},\n"
+                        fi
+                        MANIFEST_CONTENT="${MANIFEST_CONTENT}    {\"filename\": \"${CHUNK_NAME}\", \"hash\": \"${CHUNK_HASH}\"}"
+                        log "$SCRIPT_NAME" "    ↳ SUCCESS: $CHUNK_NAME uploaded (hash: $CHUNK_HASH)"
+                    fi
+                else
+                    log "$SCRIPT_NAME" "    ↳ ERROR: Failed to upload chunk $CHUNK_NAME"
+                    log "$SCRIPT_NAME" "    ↳ Output: $CHUNK_OUTPUT"
+                    UPLOAD_SUCCESS=false
+                    break
+                fi
             fi
             
             CHUNK_NUM=$((CHUNK_NUM + 1))

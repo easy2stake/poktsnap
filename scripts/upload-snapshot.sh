@@ -39,44 +39,70 @@ if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
     TMP_DIR="${FILEDIR}/tmp"
     docker exec -u sds sds-node mkdir -p "$TMP_DIR" 2>&1
     
-    # Split the file into chunks in tmp directory inside the container
+    # Check if chunks already exist
     CHUNK_PREFIX="${TMP_DIR}/${FILENAME}.part"
-    if ! docker exec -u sds sds-node split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX" 2>&1; then
-        echo "Error: Failed to split file $FILENAME"
-        exit 1
-    fi
-    
-    # Find all chunk files
     CHUNK_FILES=$(docker exec -u sds sds-node ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+    
+    if [ -z "$CHUNK_FILES" ]; then
+        # No chunks found, split the file
+        echo "Splitting file into chunks..."
+        if ! docker exec -u sds sds-node split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX" 2>&1; then
+            echo "Error: Failed to split file $FILENAME"
+            exit 1
+        fi
+        # Re-find chunk files after splitting
+        CHUNK_FILES=$(docker exec -u sds sds-node ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+    else
+        echo "Using existing chunks (file was already split)"
+    fi
     CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
     MANIFEST_CONTENT=""
     UPLOAD_SUCCESS=true
     
-    echo "Created $CHUNK_COUNT chunk(s), uploading..."
+    # Get list of already uploaded files to check for existing chunks
+    echo "Checking upload status..."
+    UPLOADED_FILES=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
     echo ""
     
-    # Upload each chunk
+    echo "Found $CHUNK_COUNT chunk(s), uploading..."
+    echo ""
+    
+    # Upload each chunk (skip if already uploaded)
     CHUNK_NUM=1
     while IFS= read -r CHUNK_FILE; do
         [ -z "$CHUNK_FILE" ] && continue
         CHUNK_NAME=$(basename "$CHUNK_FILE")
-        echo "Uploading chunk $CHUNK_NUM/$CHUNK_COUNT: $CHUNK_NAME"
         
-        CHUNK_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$CHUNK_FILE" 2>&1 | tee /dev/tty)
-        
-        if echo "$CHUNK_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
-            CHUNK_HASH=$(echo "$CHUNK_OUTPUT" | grep "File " | awk '{print $3}')
+        # Check if chunk is already uploaded
+        if echo "$UPLOADED_FILES" | grep -q "^${CHUNK_NAME} "; then
+            echo "ℹ SKIP: $CHUNK_NAME already uploaded"
+            # Get hash from uploaded files list for manifest
+            CHUNK_HASH=$(echo "$UPLOADED_FILES" | grep "^${CHUNK_NAME} " | awk '{print $2}')
             if [ -n "$CHUNK_HASH" ]; then
                 if [ -n "$MANIFEST_CONTENT" ]; then
                     MANIFEST_CONTENT="${MANIFEST_CONTENT},\n"
                 fi
                 MANIFEST_CONTENT="${MANIFEST_CONTENT}    {\"filename\": \"${CHUNK_NAME}\", \"hash\": \"${CHUNK_HASH}\"}"
-                echo "✓ Chunk $CHUNK_NUM/$CHUNK_COUNT uploaded successfully (hash: $CHUNK_HASH)"
             fi
         else
-            echo "✗ Failed to upload chunk $CHUNK_NUM/$CHUNK_COUNT"
-            UPLOAD_SUCCESS=false
-            break
+            echo "Uploading chunk $CHUNK_NUM/$CHUNK_COUNT: $CHUNK_NAME"
+            
+            CHUNK_OUTPUT=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$CHUNK_FILE" 2>&1 | tee /dev/tty)
+            
+            if echo "$CHUNK_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+                CHUNK_HASH=$(echo "$CHUNK_OUTPUT" | grep "File " | awk '{print $3}')
+                if [ -n "$CHUNK_HASH" ]; then
+                    if [ -n "$MANIFEST_CONTENT" ]; then
+                        MANIFEST_CONTENT="${MANIFEST_CONTENT},\n"
+                    fi
+                    MANIFEST_CONTENT="${MANIFEST_CONTENT}    {\"filename\": \"${CHUNK_NAME}\", \"hash\": \"${CHUNK_HASH}\"}"
+                    echo "✓ Chunk $CHUNK_NUM/$CHUNK_COUNT uploaded successfully (hash: $CHUNK_HASH)"
+                fi
+            else
+                echo "✗ Failed to upload chunk $CHUNK_NUM/$CHUNK_COUNT"
+                UPLOAD_SUCCESS=false
+                break
+            fi
         fi
         
         echo ""
