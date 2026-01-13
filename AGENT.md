@@ -73,6 +73,9 @@ This document provides context and guidelines for AI agents working on this proj
 - `SNAP_DATA_RETENTION` - Number of snap-data files to keep (default: 5)
 - `ARCHIVE_DATA_RETENTION` - Number of archive-data files to keep (default: 3)
 - Oldest files beyond retention counts are automatically deleted
+- **Chunk files** (`.part*`) and **manifest files** (`.manifest`) are **excluded** from cleanup
+- Only complete `.tar` files are subject to retention policies
+- This prevents breaking chunked file reassembly by deleting chunks/manifests independently
 
 **Upload Behavior**:
 1. Check if file >= 10GB

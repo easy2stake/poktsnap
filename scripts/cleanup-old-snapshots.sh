@@ -49,6 +49,12 @@ echo "$UPLOADED_FILES" | grep ".tar" | awk 'NF>=4 {print $0}' | while read -r li
     FILESIZE=$(echo "$line" | awk '{print $3}')
     CREATETIME=$(echo "$line" | awk '{print $4}')
     
+    # Skip chunk files (.part*) and manifest files (.manifest)
+    # These are part of split uploads and should not be deleted independently
+    if echo "$FILENAME" | grep -qE '\.(part[a-z]+|manifest)$'; then
+        continue
+    fi
+    
     # Check if filename matches snap-data pattern
     if echo "$FILENAME" | grep -q "$SNAP_DATA_PATTERN"; then
         echo "$CREATETIME $FILENAME $FILEHASH" >> "$SNAP_DATA_LIST"
