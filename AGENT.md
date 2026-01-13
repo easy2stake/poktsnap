@@ -67,6 +67,13 @@ This document provides context and guidelines for AI agents working on this proj
 - `PROCESS_ORPHANED_CHUNKS` - Enable/disable orphaned chunk recovery (default: true)
 - `ARCHIVE_DIR` - Archive directory path (default: /archive)
 
+**Retention Cleanup Configuration** (via `.env` file, used by `cleanup-old-snapshots.sh`):
+- `SNAP_DATA_PATTERN` - Pattern to match snap-data files (default: pocket-snap-data)
+- `ARCHIVE_DATA_PATTERN` - Pattern to match archive-data files (default: pocket-archive-data)
+- `SNAP_DATA_RETENTION` - Number of snap-data files to keep (default: 5)
+- `ARCHIVE_DATA_RETENTION` - Number of archive-data files to keep (default: 3)
+- Oldest files beyond retention counts are automatically deleted
+
 **Upload Behavior**:
 1. Check if file >= 10GB
 2. Check if chunks exist in `/tmp` → reuse if found
