@@ -44,7 +44,7 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
         continue
     fi
     
-    # Check file size - split if >= 50GB, otherwise upload normally
+    # Check file size - split if >= ${MAX_FILE_SIZE_GB}GB, otherwise upload normally
     FILE_SIZE=$(stat -c%s "$FILEPATH" 2>/dev/null || echo "0")
     if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
         FILE_SIZE_GB=$(awk "BEGIN {printf \"%.2f\", $FILE_SIZE/1073741824}")
