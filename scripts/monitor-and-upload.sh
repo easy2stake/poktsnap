@@ -44,31 +44,106 @@ find "$ARCHIVE_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tar
         continue
     fi
     
-    # Check file size (skip if >= 50GB)
+    # Check file size - split if >= 50GB, otherwise upload normally
     FILE_SIZE=$(stat -c%s "$FILEPATH" 2>/dev/null || echo "0")
     if [ "$FILE_SIZE" -ge "$MAX_FILE_SIZE_BYTES" ]; then
         FILE_SIZE_GB=$(awk "BEGIN {printf \"%.2f\", $FILE_SIZE/1073741824}")
-        log "$SCRIPT_NAME" "  ↳ SKIP: $FILENAME is too large (${FILE_SIZE_GB}GB >= ${MAX_FILE_SIZE_GB}GB)"
-        continue
-    fi
-    
-    log "$SCRIPT_NAME" "  ↳ Uploading: $FILENAME"
-    
-    # Upload the file
-    UPLOAD_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$FILEPATH" 2>&1)
-    
-    # Check if upload was successful
-    if echo "$UPLOAD_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
-        log "$SCRIPT_NAME" "  ↳ SUCCESS: $FILENAME uploaded successfully"
+        log "$SCRIPT_NAME" "  ↳ File is large (${FILE_SIZE_GB}GB >= ${MAX_FILE_SIZE_GB}GB), splitting into chunks..."
         
-        # Extract and log the file hash if available
-        FILEHASH=$(echo "$UPLOAD_OUTPUT" | grep "File " | awk '{print $3}')
-        if [ -n "$FILEHASH" ]; then
-            log "$SCRIPT_NAME" "  ↳ File hash: $FILEHASH"
+        # Split the file into chunks
+        CHUNK_PREFIX="${FILEPATH}.part"
+        if ! split -b "$MAX_FILE_SIZE_BYTES" "$FILEPATH" "$CHUNK_PREFIX"; then
+            log "$SCRIPT_NAME" "  ↳ ERROR: Failed to split file $FILENAME"
+            continue
+        fi
+        
+        # Find all chunk files
+        CHUNK_FILES=$(ls -1 "${CHUNK_PREFIX}"* 2>/dev/null | sort)
+        CHUNK_COUNT=$(echo "$CHUNK_FILES" | wc -l | tr -d ' ')
+        MANIFEST_CONTENT=""
+        UPLOAD_SUCCESS=true
+        
+        log "$SCRIPT_NAME" "  ↳ Created $CHUNK_COUNT chunk(s), uploading..."
+        
+        # Upload each chunk
+        CHUNK_NUM=1
+        while IFS= read -r CHUNK_FILE; do
+            [ -z "$CHUNK_FILE" ] && continue
+            CHUNK_NAME=$(basename "$CHUNK_FILE")
+            log "$SCRIPT_NAME" "    ↳ Uploading chunk $CHUNK_NUM/$CHUNK_COUNT: $CHUNK_NAME"
+            
+            CHUNK_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$CHUNK_FILE" 2>&1)
+            
+            if echo "$CHUNK_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+                CHUNK_HASH=$(echo "$CHUNK_OUTPUT" | grep "File " | awk '{print $3}')
+                if [ -n "$CHUNK_HASH" ]; then
+                    if [ -n "$MANIFEST_CONTENT" ]; then
+                        MANIFEST_CONTENT="${MANIFEST_CONTENT},\n"
+                    fi
+                    MANIFEST_CONTENT="${MANIFEST_CONTENT}    {\"filename\": \"${CHUNK_NAME}\", \"hash\": \"${CHUNK_HASH}\"}"
+                    log "$SCRIPT_NAME" "    ↳ SUCCESS: $CHUNK_NAME uploaded (hash: $CHUNK_HASH)"
+                fi
+            else
+                log "$SCRIPT_NAME" "    ↳ ERROR: Failed to upload chunk $CHUNK_NAME"
+                log "$SCRIPT_NAME" "    ↳ Output: $CHUNK_OUTPUT"
+                UPLOAD_SUCCESS=false
+                break
+            fi
+            
+            CHUNK_NUM=$((CHUNK_NUM + 1))
+        done <<< "$CHUNK_FILES"
+        
+        # Create and upload manifest if all chunks uploaded successfully
+        if [ "$UPLOAD_SUCCESS" = true ]; then
+            MANIFEST_FILE="${FILEPATH}.manifest"
+            cat > "$MANIFEST_FILE" <<EOF
+{
+  "original_filename": "$FILENAME",
+  "original_size": $FILE_SIZE,
+  "chunk_count": $CHUNK_COUNT,
+  "chunk_size": $MAX_FILE_SIZE_BYTES,
+  "chunks": [
+$(echo -e "$MANIFEST_CONTENT")
+  ]
+}
+EOF
+            
+            log "$SCRIPT_NAME" "  ↳ Uploading manifest file: ${FILENAME}.manifest"
+            MANIFEST_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$MANIFEST_FILE" 2>&1)
+            
+            if echo "$MANIFEST_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+                MANIFEST_HASH=$(echo "$MANIFEST_OUTPUT" | grep "File " | awk '{print $3}')
+                log "$SCRIPT_NAME" "  ↳ SUCCESS: All $CHUNK_COUNT chunk(s) and manifest uploaded (manifest hash: $MANIFEST_HASH)"
+                # Cleanup local chunks and manifest
+                rm -f "${CHUNK_PREFIX}"* "$MANIFEST_FILE"
+            else
+                log "$SCRIPT_NAME" "  ↳ ERROR: Failed to upload manifest file"
+                log "$SCRIPT_NAME" "  ↳ Output: $MANIFEST_OUTPUT"
+                rm -f "${CHUNK_PREFIX}"* "$MANIFEST_FILE"
+            fi
+        else
+            log "$SCRIPT_NAME" "  ↳ ERROR: Failed to upload all chunks, cleaning up..."
+            rm -f "${CHUNK_PREFIX}"*
         fi
     else
-        log "$SCRIPT_NAME" "  ↳ ERROR: Upload failed for $FILENAME"
-        log "$SCRIPT_NAME" "  ↳ Output: $UPLOAD_OUTPUT"
+        log "$SCRIPT_NAME" "  ↳ Uploading: $FILENAME"
+        
+        # Upload the file normally
+        UPLOAD_OUTPUT=$(rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" put "$FILEPATH" 2>&1)
+        
+        # Check if upload was successful
+        if echo "$UPLOAD_OUTPUT" | grep -q "received response (return: SUCCESS)"; then
+            log "$SCRIPT_NAME" "  ↳ SUCCESS: $FILENAME uploaded successfully"
+            
+            # Extract and log the file hash if available
+            FILEHASH=$(echo "$UPLOAD_OUTPUT" | grep "File " | awk '{print $3}')
+            if [ -n "$FILEHASH" ]; then
+                log "$SCRIPT_NAME" "  ↳ File hash: $FILEHASH"
+            fi
+        else
+            log "$SCRIPT_NAME" "  ↳ ERROR: Upload failed for $FILENAME"
+            log "$SCRIPT_NAME" "  ↳ Output: $UPLOAD_OUTPUT"
+        fi
     fi
     
     log "$SCRIPT_NAME" ""
