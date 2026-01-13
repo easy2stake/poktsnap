@@ -55,13 +55,23 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EOF_CRONTAB
   
-  # Add environment variables (properly escaped)
-  echo "RPC_PASSWORD=\"$RPC_PASSWORD\"" >> /tmp/crontab.tmp
-  echo "RPC_URL=\"$RPC_URL\"" >> /tmp/crontab.tmp
-  echo "SNAP_DATA_PATTERN=\"$SNAP_DATA_PATTERN\"" >> /tmp/crontab.tmp
-  echo "ARCHIVE_DATA_PATTERN=\"$ARCHIVE_DATA_PATTERN\"" >> /tmp/crontab.tmp
-  echo "SNAP_DATA_RETENTION=\"$SNAP_DATA_RETENTION\"" >> /tmp/crontab.tmp
-  echo "ARCHIVE_DATA_RETENTION=\"$ARCHIVE_DATA_RETENTION\"" >> /tmp/crontab.tmp
+  # Automatically export all relevant environment variables to crontab
+  # This includes variables used by monitor-and-upload.sh and cleanup-old-snapshots.sh
+  # Filter for variables that match our script prefixes or are explicitly needed
+  # This way, adding new env vars doesn't require updating this code
+  env | grep -E '^(RPC_|SNAP_|ARCHIVE_|MAX_FILE_|PROCESS_|CONTAINER_ARCHIVE_DIR|HOST_ARCHIVE_DIR|ARCHIVE_DIR)=' | while IFS= read -r line; do
+    # Split on first '=' only (values may contain '=')
+    var_name="${line%%=*}"
+    var_value="${line#*=}"
+    
+    # Skip if variable name is empty
+    [ -z "$var_name" ] && continue
+    
+    # Properly escape the value for crontab (handle quotes and special chars)
+    # Replace single quotes with '\'' (end quote, escaped quote, start quote)
+    escaped_value=$(printf '%s' "$var_value" | sed "s/'/'\\\\''/g")
+    echo "${var_name}='${escaped_value}'" >> /tmp/crontab.tmp
+  done
   
   # Add cron jobs
   cat >> /tmp/crontab.tmp <<'EOF_CRONTAB'
