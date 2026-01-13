@@ -90,19 +90,20 @@ cmd_list() {
     echo ""
     
     # Print header
-    printf "%-50s %-12s %-20s\n" "FILENAME" "SIZE" "TIMESTAMP"
-    printf "%-50s %-12s %-20s\n" "--------" "----" "---------"
+    printf "%-50s %-45s %-12s %-20s\n" "FILENAME" "HASH" "SIZE" "TIMESTAMP"
+    printf "%-50s %-45s %-12s %-20s\n" "--------" "----" "----" "---------"
     
     # Print each file
     echo "$TAR_FILES" | while IFS= read -r line; do
         FNAME=$(echo "$line" | awk '{print $1}')
+        FHASH=$(echo "$line" | awk '{print $2}')
         FSIZE=$(echo "$line" | awk '{print $3}')
         FTIME=$(echo "$line" | awk '{print $4}')
         
         FDATE=$(format_timestamp "$FTIME")
         FSIZE_DISPLAY=$(format_size "$FSIZE")
         
-        printf "%-50s %-12s %-20s\n" "$FNAME" "$FSIZE_DISPLAY" "$FDATE"
+        printf "%-50s %-45s %-12s %-20s\n" "$FNAME" "$FHASH" "$FSIZE_DISPLAY" "$FDATE"
     done
     
     echo ""
