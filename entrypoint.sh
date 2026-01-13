@@ -55,17 +55,22 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EOF_CRONTAB
   
-  # Automatically export all relevant environment variables to crontab
-  # This includes variables used by monitor-and-upload.sh and cleanup-old-snapshots.sh
-  # Filter for variables that match our script prefixes or are explicitly needed
-  # This way, adding new env vars doesn't require updating this code
-  env | grep -E '^(RPC_|SNAP_|ARCHIVE_|MAX_FILE_|PROCESS_|CONTAINER_ARCHIVE_DIR|HOST_ARCHIVE_DIR|ARCHIVE_DIR)=' | while IFS= read -r line; do
+  # Export all environment variables to crontab (except system variables)
+  # This ensures all configuration from .env is available to cron jobs
+  env | while IFS= read -r line; do
     # Split on first '=' only (values may contain '=')
     var_name="${line%%=*}"
     var_value="${line#*=}"
     
     # Skip if variable name is empty
     [ -z "$var_name" ] && continue
+    
+    # Skip common system variables that cron doesn't need
+    case "$var_name" in
+      HOME|USER|LOGNAME|SHELL|PATH|PWD|OLDPWD|TERM|SHLVL|_|LS_COLORS|LESSCLOSE|LESSOPEN)
+        continue
+        ;;
+    esac
     
     # Properly escape the value for crontab (handle quotes and special chars)
     # Replace single quotes with '\'' (end quote, escaped quote, start quote)
