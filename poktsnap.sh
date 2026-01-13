@@ -37,6 +37,35 @@ show_usage() {
     echo "  $0 shell"
 }
 
+# Format file size to human-readable format (bytes -> MB/GB)
+format_size() {
+    local size="$1"
+    
+    if [ -z "$size" ] || ! [ "$size" -gt 0 ] 2>/dev/null; then
+        echo "$size"
+        return
+    fi
+    
+    if [ "$size" -gt 1073741824 ]; then
+        awk "BEGIN {printf \"%.2f GB\", $size/1073741824}"
+    elif [ "$size" -gt 1048576 ]; then
+        awk "BEGIN {printf \"%.2f MB\", $size/1048576}"
+    else
+        echo "${size} bytes"
+    fi
+}
+
+# Format Unix timestamp to readable date
+format_timestamp() {
+    local timestamp="$1"
+    
+    if [ -n "$timestamp" ] && [ "$timestamp" -gt 0 ] 2>/dev/null; then
+        date -d "@$timestamp" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$timestamp"
+    else
+        echo "$timestamp"
+    fi
+}
+
 # ============================================================================
 # Command: list
 # ============================================================================
@@ -46,7 +75,39 @@ cmd_list() {
     echo "Fetching file list from SDS node..."
     echo ""
     
-    docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list
+    # Get file list and filter for .tar files
+    FILE_LIST=$(docker exec -u sds sds-node rpcclient -p "$RPC_PASSWORD" -u "$RPC_URL" list 2>&1)
+    TAR_FILES=$(echo "$FILE_LIST" | grep -v "^\[DEBUG\]" | grep "\.tar" | awk 'NF>=4 {print $0}' | sort -k4 -n -r)
+    
+    if [ -z "$TAR_FILES" ]; then
+        echo "No snapshot files found."
+        return
+    fi
+    
+    echo "=========================================="
+    echo "Available Snapshot Files"
+    echo "=========================================="
+    echo ""
+    
+    # Print header
+    printf "%-50s %-12s %-20s\n" "FILENAME" "SIZE" "TIMESTAMP"
+    printf "%-50s %-12s %-20s\n" "--------" "----" "---------"
+    
+    # Print each file
+    echo "$TAR_FILES" | while IFS= read -r line; do
+        FNAME=$(echo "$line" | awk '{print $1}')
+        FSIZE=$(echo "$line" | awk '{print $3}')
+        FTIME=$(echo "$line" | awk '{print $4}')
+        
+        FDATE=$(format_timestamp "$FTIME")
+        FSIZE_DISPLAY=$(format_size "$FSIZE")
+        
+        printf "%-50s %-12s %-20s\n" "$FNAME" "$FSIZE_DISPLAY" "$FDATE"
+    done
+    
+    echo ""
+    echo "Total files: $(echo "$TAR_FILES" | wc -l | tr -d ' ')"
+    echo ""
 }
 
 # ============================================================================
