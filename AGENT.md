@@ -49,30 +49,85 @@ This document provides context and guidelines for AI agents working on this proj
 - Manifest: `/archive/tmp/snapshot.tar.manifest` (JSON metadata)
 - **tmp directory persists** after upload (only files inside are deleted)
 
+**Orphaned Chunk Handling**:
+- If original file is deleted from `/archive` but chunks remain in `/tmp`
+- **CRITICAL**: Only processes orphaned chunks if local manifest exists
+- Manifest proves the split was complete - without it, chunks may be incomplete
+- **Validates chunk count**: Actual chunks must match manifest's `chunk_count`
+- If chunks are missing → skip with error (manual intervention required)
+- Calculates `original_size` from sum of all chunk sizes
+- **Separate cleanup process** handles removing old chunks from `/tmp`
+- This allows crash recovery even if original file was deleted
+
 **Upload Behavior**:
 1. Check if file >= 10GB
 2. Check if chunks exist in `/tmp` → reuse if found
-3. Check if each chunk already uploaded → skip if uploaded
-4. Upload remaining chunks
-5. Create and upload manifest
-6. Delete chunks and manifest files (keep `/tmp` directory)
-7. Keep original file in `/archive`
+3. **Create local manifest immediately** (proof of split, hashes null)
+4. Check if each chunk already uploaded → skip if uploaded
+5. Upload remaining chunks (collect hashes)
+6. **On failure**: Keep chunks AND manifest for retry on next run
+7. **On success**: Update manifest with hashes, mark `upload_complete: true`
+8. Upload manifest to Stratos
+9. Delete chunks and manifest files (keep `/tmp` directory)
+10. Keep original file in `/archive`
 
 ### Manifest File Format
 
+**Manifest Lifecycle**: Created immediately after split, updated after upload
+
+**Initial Manifest** (after split, before upload):
 ```json
 {
   "original_filename": "snapshot.tar",
   "original_size": 53687091200,
   "chunk_count": 3,
   "chunk_size": 10737418240,
+  "split_complete": true,
+  "upload_complete": false,
   "chunks": [
-    {"filename": "snapshot.tar.partaa", "hash": "abc123..."},
-    {"filename": "snapshot.tar.partab", "hash": "def456..."},
-    {"filename": "snapshot.tar.partac", "hash": "ghi789..."}
+    {"filename": "snapshot.tar.partaa", "hash": null},
+    {"filename": "snapshot.tar.partab", "hash": null},
+    {"filename": "snapshot.tar.partac", "hash": null}
   ]
 }
 ```
+
+**Final Manifest** (after upload completion):
+```json
+{
+  "original_filename": "snapshot.tar",
+  "original_size": 53687091200,
+  "chunk_count": 3,
+  "chunk_size": 10737418240,
+  "split_complete": true,
+  "upload_complete": true,
+  "chunks": [
+    {"filename": "snapshot.tar.partaa", "hash": "v05ahm51f8pd..."},
+    {"filename": "snapshot.tar.partab", "hash": "v05ahm51f8pd..."},
+    {"filename": "snapshot.tar.partac", "hash": "v05ahm51f8pd..."}
+  ]
+}
+```
+
+**Orphaned Chunk Manifest** (includes `orphaned: true` flag):
+```json
+{
+  "original_filename": "snapshot.tar",
+  "original_size": 53687091200,
+  "chunk_count": 3,
+  "chunk_size": 10737418240,
+  "split_complete": true,
+  "upload_complete": true,
+  "orphaned": true,
+  "chunks": [...]
+}
+```
+
+**Purpose**:
+- **Proof of Split**: Manifest exists locally even if original file deleted
+- **Upload Tracking**: `upload_complete` flag shows if all chunks uploaded
+- **Reassembly**: Download script uses manifest to reconstruct file
+- **Integrity**: Original size used for verification after reassembly
 
 ### Download and Reassembly
 
@@ -163,6 +218,22 @@ For each file:
       │   ├─ Already uploaded? → Skip, use hash
       │   └─ Not uploaded? → Upload chunk
       ├─ Create manifest JSON
+      ├─ Upload manifest
+      └─ Cleanup: rm chunks + manifest (keep /tmp dir)
+  ↓
+Scan /archive/tmp for orphaned chunks
+  ↓
+For each set of orphaned chunks:
+  ├─ Original file exists in /archive? → Skip (already processed above)
+  ├─ Manifest exists on Stratos? → Skip (already completed)
+  ├─ NO local manifest? → Skip (split may be incomplete!)
+  ├─ Chunk count mismatch? → Skip (chunks missing/corrupted!)
+  └─ All checks passed?
+      ├─ Calculate total size from chunks
+      ├─ For each chunk:
+      │   ├─ Already uploaded? → Skip, use hash
+      │   └─ Not uploaded? → Upload chunk
+      ├─ Update manifest with hashes
       ├─ Upload manifest
       └─ Cleanup: rm chunks + manifest (keep /tmp dir)
 ```
